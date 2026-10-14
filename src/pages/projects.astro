@@ -29,7 +29,7 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
               <span class="badge">{badge[p.kind]}</span>
             </div>
             <div class="meta">{p.year}</div>
-            <h3>{p.title}</h3>
+            <h3>{p.titleImage ? <img class="title-img" src={url(p.titleImage)} alt={p.title} height="22" /> : p.title}</h3>
             <p>{p.description}</p>
             <div class="tags">{p.stack.map((s) => <span class="tag">{s}</span>)}</div>
             {p.link && <span class="go">{p.linkLabel ?? 'Visiter'} →</span>}
@@ -44,6 +44,7 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
   .project { display: flex; flex-direction: column; position: relative; overflow: hidden; }
   .watermark { position: absolute; right: -46px; top: -46px; width: 210px; height: 210px; opacity: .16; pointer-events: none; transition: opacity .3s ease, transform .6s ease; }
   .project:hover .watermark { opacity: .3; transform: rotate(8deg); }
+  .title-img { display: block; height: 1.4rem; width: auto; margin: .1rem 0; }
   .project > :not(.watermark) { position: relative; }
   .top { display: flex; align-items: center; justify-content: space-between; min-height: 176px; margin-bottom: 10px; }
   .logo { width: 72px; height: 72px; object-fit: contain; border-radius: 16px; }
