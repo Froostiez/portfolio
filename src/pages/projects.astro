@@ -17,6 +17,13 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
         const href = p.link ? (isExternal(p.link) ? p.link : url(p.link)) : undefined;
         return (
           <Tag class="card project" href={href} target={isExternal(p.link) ? '_blank' : undefined} rel={isExternal(p.link) ? 'noopener' : undefined}>
+            {p.background && <div class="bg" style={`background-image:url(${url(p.background)})`} aria-hidden="true"></div>}
+            {p.backgroundAlt && <div class="bg bg-alt" style={`background-image:url(${url(p.backgroundAlt)})`} aria-hidden="true"></div>}
+      {p.cardBack && (
+        <div class="cardback" aria-hidden="true" style={`--f1:${p.cardBack.fond};--p1:${p.cardBack.primaire};--o1:${p.cardBack.or};` + (p.cardBackAlt ? `--f2:${p.cardBackAlt.fond};--p2:${p.cardBackAlt.primaire};--o2:${p.cardBackAlt.or};` : '')}>
+          <span>V</span>
+        </div>
+      )}
             {p.watermark && <img class="watermark" src={url(p.watermark)} alt="" loading="lazy" aria-hidden="true" />}
             <div class="top">
               {p.logo && p.logoBack ? (
@@ -45,7 +52,18 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
   .watermark { position: absolute; right: -46px; top: -46px; width: 210px; height: 210px; opacity: .16; pointer-events: none; transition: opacity .3s ease, transform .6s ease; }
   .project:hover .watermark { opacity: .3; transform: rotate(8deg); }
   .title-img { display: block; height: 1.4rem; width: auto; margin: .1rem 0; }
-  .project > :not(.watermark) { position: relative; }
+  .bg { position: absolute; inset: 0; background-size: 100% auto; background-position: center; background-repeat: repeat-y; opacity: .55; pointer-events: none; transition: opacity .5s ease; }
+  .bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,10,12,.25), rgba(10,10,12,.75) 60%); }
+  .cardback { --fond: var(--f1); --prim: var(--p1); --or: var(--o1); position: absolute; right: -34px; top: -38px; width: 150px; opacity: .55; pointer-events: none; aspect-ratio: 256 / 357; transform: rotate(12deg); border-radius: 10px; border: 2px solid var(--or); display: grid; place-items: center; transition: transform .5s ease;
+    background: repeating-linear-gradient(45deg, color-mix(in srgb, var(--prim) 40%, transparent) 0 1.5px, transparent 1.5px 9px), repeating-linear-gradient(-45deg, color-mix(in srgb, var(--prim) 40%, transparent) 0 1.5px, transparent 1.5px 9px), var(--fond); }
+  .cardback::before { content: ''; position: absolute; inset: 10px; border: 1px solid var(--or); border-radius: 2px; }
+  .cardback::after { content: ''; position: absolute; width: 60px; height: 60px; background: var(--fond); border: 3px solid var(--or); transform: rotate(45deg); }
+  .cardback span { position: relative; z-index: 1; font: bold 42px Georgia, 'Times New Roman', serif; color: var(--or); }
+  .project:hover .cardback { opacity: .8; transform: rotate(6deg); --fond: var(--f2, var(--f1)); --prim: var(--p2, var(--p1)); --or: var(--o2, var(--o1)); }
+  .bg-alt { opacity: 0; }
+  .project:hover .bg-alt { opacity: .55; }
+  .project:hover .bg:not(.bg-alt) { opacity: 0; }
+  .project > :not(.watermark):not(.bg):not(.cardback) { position: relative; }
   .top { display: flex; align-items: center; justify-content: space-between; min-height: 176px; margin-bottom: 10px; }
   .logo { width: 72px; height: 72px; object-fit: contain; border-radius: 16px; }
   .placeholder { display: grid; place-items: center; background: var(--bg); border: 1px solid var(--line); font-size: 1.8rem; font-weight: 800; color: var(--accent); }
