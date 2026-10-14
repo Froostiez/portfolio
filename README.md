@@ -1,6 +1,9 @@
-# Portfolio
+# Portfolio de Ferdinand Lacroix
 
-Site Astro statique : accueil avec hero interactif, projets, lab d'expériences.
+Site statique Astro (TypeScript) : CV virtuel avec un hero interactif, une page Projets et un lab d'expériences.
+En ligne : https://froostiez.github.io/portfolio/ (repo `Froostiez/portfolio`, GitHub Pages via Actions).
+
+## Commandes (PowerShell)
 
 ```powershell
 npm install
@@ -8,6 +11,49 @@ npm run dev      # http://localhost:4321
 npm run build
 ```
 
-Ajouter un projet : `src/content/projects.ts`.
-Ajouter une expérience : `src/content/experiments.ts` + `demos` dans `src/pages/lab/[slug].astro`.
-Déploiement : GitHub Pages via `.github/workflows/deploy.yml` (SITE et BASE calculés automatiquement).
+Dossier local : `C:\Users\ferdi\Desktop\PROJET\Froostiez\portfolio`.
+Workflow voulu : Claude modifie les fichiers directement dans ce dossier (pas de zip). À chaque étape : `git add .`, message de commit, `git push`.
+
+## Structure
+
+- `src/pages/` : `index` (hero), `projects`, `about`, `contact`, `lab/index`, `lab/[slug]`.
+- `src/layouts/Base.astro`, `src/components/Nav.astro` : cadre commun et navigation.
+- `src/components/BrushReveal.astro` : hero. Image sombre (sable noir) recouvrant un canvas qui révèle la prairie de fleurs sous le curseur (blobs procéduraux Catmull-Rom, traînée qui rétrécit, blob au repos "Move to reveal", `prefers-reduced-motion` géré).
+- `src/components/Coin.astro` : pièce 3D three.js (Vegamon). Tranche cannelée dégradé bleu/cuivre, bump map, supersampling, repli image plate sans WebGL, statique en reduced-motion, rotation au survol/drag.
+- `src/content/projects.ts` : la liste des projets (une entrée = une carte).
+- `src/content/experiments.ts` : le lab. Ajouter aussi une entrée dans `demos` de `src/pages/lab/[slug].astro`.
+- `src/utils.ts` : `url()` préfixe les chemins avec `import.meta.env.BASE_URL` (obligatoire pour GitHub Pages).
+- `astro.config.mjs` : SITE et BASE lus depuis l'environnement. `.github/workflows/deploy.yml` les calcule (BASE = `/repo`, ou `/` si le repo finit par `.github.io`).
+
+## Cartes projets (`projects.ts`)
+
+Champs : `title, year, kind (web|android|pro|lab), description, stack, link, linkLabel`, plus les options visuelles :
+
+- `logo` : image du logo. Avec `logoBack`, le logo devient la pièce 3D (face + dos).
+- `watermark` : grand visuel discret, coin haut droit, coupé par le bord (Mysteria : logo runique, RacketLab : `loupe-dark.svg`).
+- `titleImage` : remplace le titre texte par un wordmark (RacketLab : `logo-wordmark-dark.svg`, texte seul rogné à partir du logo horizontal).
+- `background` / `backgroundAlt` : fond de carte, fondu enchaîné vers l'alt au survol (Vegamon : `card-bg-gold.webp` puis `card-bg-neon.webp`). Affichés à la largeur de la carte ; le gold est rogné sur les traits du cadre pour s'aligner avec les bords.
+- `cardBack` / `cardBackAlt` : dos de carte Vegamon dessiné en CSS (treillis, cadre, losange, "V") en filigrane coin haut droit ; palette alt au survol. Couleurs fond/treillis réelles de VGS1 et VGS2 ; les couleurs "or" (`#E0B84F`, `#7FD8FF`) sont des estimations, à remplacer par la couleur de tranche All-in de chaque série.
+
+Projets actuels : Vegamon, Mysteria, RacketLab, FIRE!, Miette (Android, sans lien), Choipo (projet pro, logo seul), Hero reveal (lab).
+Liens : vegamon.vercel.app, mysteria-gamma.vercel.app, racketlab-two.vercel.app, fire-vert-pi.vercel.app (URL publique, l'ancienne preview était protégée par Vercel).
+
+## Images
+
+`public/images/` : `base-*.webp` / `reveal-*.webp` (hero), `projects/<projet>/...`. Dossiers en minuscules.
+Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une couleur fixe : en `<img>` utiliser la variante colorée (`loupe-dark.svg` = crème pour fond sombre). Les originaux lourds ne sont pas dans le repo ; les `card-bg-*.webp` sont des versions allégées (720 px).
+
+## Pièges connus
+
+- Windows : renommer un dossier en changeant seulement la casse demande une étape intermédiaire.
+- Ne pas lancer `npm install` depuis un autre OS que Windows dans ce dossier (a déjà corrompu `node_modules/three`).
+- Après un changement d'image avec le même nom, faire Ctrl+F5.
+
+## À faire
+
+- Compléter les couleurs "or" du dos de carte Vegamon.
+- Régénérer la face néon de la pièce Vegamon en 1024 px (plus nette).
+- Favicon (`favicon.ico` fourni, pas encore branché).
+- Relire/étoffer les pages About et Contact.
+- Ajouter d'autres expériences au lab ; liens ou captures pour Miette et Choipo si possible.
+- Option : renommer le repo en `Froostiez.github.io` pour une URL sans `/portfolio`.
