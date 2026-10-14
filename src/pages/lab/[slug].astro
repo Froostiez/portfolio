@@ -1,0 +1,31 @@
+---
+import Base from '../../layouts/Base.astro';
+import BrushReveal from '../../components/BrushReveal.astro';
+import { experiments } from '../../content/experiments';
+import { url } from '../../utils';
+
+export function getStaticPaths() {
+  return experiments.map((e) => ({ params: { slug: e.slug }, props: { experiment: e } }));
+}
+
+// Associe chaque slug à son composant.
+const demos: Record<string, any> = {
+  'brush-reveal': BrushReveal,
+};
+
+const { experiment } = Astro.props;
+const Demo = demos[experiment.slug];
+---
+<Base title={`${experiment.title} · Lab`} hero>
+  <Demo>
+    <div class="lab-bar">
+      <a class="pill glass" href={url('/lab')}>← Back to the lab</a>
+      <span class="meta">{experiment.title}</span>
+    </div>
+  </Demo>
+</Base>
+
+<style>
+  .lab-bar { position: absolute; left: 28px; bottom: 28px; display: flex; align-items: center; gap: 16px; color: #fff; }
+  .meta { color: rgba(255,255,255,.8); }
+</style>

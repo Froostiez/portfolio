@@ -1,0 +1,21 @@
+---
+import Base from '../../layouts/Base.astro';
+import { experiments } from '../../content/experiments';
+import { url } from '../../utils';
+---
+<Base title="Lab · Ferdinand Lacroix">
+  <main class="page">
+    <h1>Lab</h1>
+    <p class="lead">Un peu fourre-tout : des idées, des assets et des tests qui n’ont pas (encore) de projet.</p>
+    <div class="grid">
+      {experiments.map((e) => (
+        <a class="card" href={url(`/lab/${e.slug}`)}>
+          <div class="meta">{e.date}</div>
+          <h3>{e.title}</h3>
+          <p>{e.description}</p>
+          <div class="tags">{e.tags.map((t) => <span class="tag">{t}</span>)}</div>
+        </a>
+      ))}
+    </div>
+  </main>
+</Base>

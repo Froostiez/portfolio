@@ -1,0 +1,32 @@
+---
+import { url } from '../utils';
+const { overlay = false } = Astro.props;
+const links = [
+  { href: '/projects', label: 'Projects' },
+  { href: '/lab', label: 'Lab' },
+  { href: '/about', label: 'About' },
+];
+---
+<header class:list={['nav', { overlay }]}>
+  <a class="logo" href={url('/')}>Ferdinand<span>.</span></a>
+  <nav class="links">
+    {links.map((l) => <a href={url(l.href)}>{l.label}</a>)}
+  </nav>
+  <a class="pill glass contact" href={url('/contact')}>Contact</a>
+</header>
+
+<style>
+  .nav {
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    padding: 20px 28px; position: relative; z-index: 5;
+  }
+  .nav.overlay { position: absolute; inset: 0 0 auto 0; }
+  :global(body:not(.has-hero)) .nav { position: fixed; inset: 0 0 auto 0; background: rgba(15,14,20,.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .logo { font-weight: 800; letter-spacing: -0.02em; text-decoration: none; font-size: 1.15rem; color: #fff; }
+  .logo span { color: var(--pink); }
+  .links { display: flex; gap: 28px; margin-right: auto; margin-left: 28px; }
+  .links a { text-decoration: none; color: rgba(255,255,255,.85); font-size: .95rem; }
+  .links a:hover { color: #fff; }
+  .contact { padding: 8px 18px; }
+  @media (max-width: 820px) { .links { display: none; } .nav { padding: 16px 18px; } }
+</style>

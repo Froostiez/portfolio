@@ -1,0 +1,18 @@
+---
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d’expériences.', hero = false } = Astro.props;
+---
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+  </head>
+  <body class:list={{ 'has-hero': hero }}>
+    <Nav overlay={hero} />
+    <slot />
+  </body>
+</html>

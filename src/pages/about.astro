@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base title="About · Ferdinand Lacroix">
+  <main class="page">
+    <h1>About</h1>
+    <p class="lead">Étudiant ingénieur à Télécom SudParis (Institut Polytechnique de Paris), curieux de tout ce qui mêle code, données et idées visuelles.</p>
+
+    <section class="section">
+      <h2>Parcours</h2>
+      <ul class="list">
+        <li><b>Télécom SudParis</b> · cycle ingénieur, réseaux, traitement du signal, bases de données, télécoms, développement logiciel</li>
+        <li><b>UC3M, Madrid</b> · semestre d’échange en 2e année</li>
+        <li><b>Blissim</b> · stage Data &amp; Tools, été 2026</li>
+        <li><b>Classes préparatoires</b> · PCSI/PSI, Lycée Saint-Louis</li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2>Compétences</h2>
+      <div class="tags">
+        {['Python', 'NumPy', 'XGBoost', 'Java', 'JavaFX', 'SQL', 'Bash'].map((s) => <span class="tag">{s}</span>)}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Langues</h2>
+      <ul class="list">
+        <li><b>Français</b> · langue maternelle</li>
+        <li><b>Espagnol</b> · bilingue</li>
+        <li><b>Anglais</b> · C1-C2</li>
+      </ul>
+    </section>
+  </main>
+</Base>

@@ -1,0 +1,268 @@
+---
+// Hero interactif : le curseur "perce" l'image BASE (sable noir) et révèle l'image REVEAL (prairie).
+// Réglages dans la section CONFIG du script ci-dessous.
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<section
+  class="hero"
+  data-brush-reveal
+  data-base-lg={`${base}/images/base-2400.webp`}
+  data-base-sm={`${base}/images/base-1280.webp`}
+  data-reveal-lg={`${base}/images/reveal-2400.webp`}
+  data-reveal-sm={`${base}/images/reveal-1280.webp`}
+>
+  <canvas class="layer reveal" aria-hidden="true"></canvas>
+  <canvas class="layer top" aria-hidden="true"></canvas>
+  <div class="scrim top-scrim"></div>
+  <div class="scrim bottom-scrim"></div>
+  <div class="content"><slot /></div>
+  <div class="idle-label" aria-hidden="true">Move to reveal</div>
+  <div class="ring" aria-hidden="true"></div>
+</section>
+
+<style is:global>
+  body.has-hero { cursor: none; }
+  body.has-hero a, body.has-hero button { cursor: pointer; }
+  body.has-hero { overflow-x: hidden; }
+</style>
+
+<style>
+  .hero {
+    position: relative; width: 100%; height: 100svh; min-height: 480px; overflow: hidden;
+    color: #fff; touch-action: none; background: #1b1a24;
+  }
+  .layer { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .scrim { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 2; }
+  .top-scrim { top: 0; height: 22%; background: linear-gradient(to bottom, rgba(10,8,20,.45), transparent); }
+  .bottom-scrim { bottom: 0; height: 45%; background: linear-gradient(to top, rgba(10,8,20,.6), transparent); }
+  .content { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+  .content :global(a), .content :global(button) { pointer-events: auto; }
+  .idle-label {
+    position: absolute; z-index: 4; left: 0; top: 0; pointer-events: none; opacity: 0;
+    transform: translate(-50%, -50%); font-size: .8rem; letter-spacing: .08em; text-transform: uppercase;
+    color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.45); white-space: nowrap;
+  }
+  .ring {
+    position: fixed; z-index: 9; left: 0; top: 0; width: 28px; height: 28px; margin: -14px 0 0 -14px;
+    border: 1.5px solid #fff; border-radius: 50%; pointer-events: none; mix-blend-mode: difference;
+    opacity: 0; transition: opacity .2s ease;
+  }
+  .ring.on { opacity: 1; }
+</style>
+
+<script>
+  // ───────── CONFIG ─────────
+  const BASE_RADIUS = 0.19;       // rayon du pinceau, part de la plus petite dimension du viewport
+  const FEATHER = 0.09;           // flou des bords, part du rayon
+  const MASK_SCALE = 0.33;        // taille du masque par rapport à l'écran
+  const LIFE = 2.7;               // durée de vie d'une empreinte (s)
+  const FOLLOW = 0.17;            // lissage du curseur (0 à 1)
+  const STEP = 0.09;              // distance entre empreintes, part du rayon
+  const SAMPLES = 40;             // points par blob
+  const IDLE_POS = { x: 0.74, y: 0.7 }; // position du blob au repos, en coordonnées normalisées de l'IMAGE
+  // ──────────────────────────
+
+  const hero = document.querySelector<HTMLElement>('[data-brush-reveal]');
+  if (hero) init(hero);
+
+  function init(hero: HTMLElement) {
+    const topCanvas = hero.querySelector<HTMLCanvasElement>('.top')!;
+    const revealCanvas = hero.querySelector<HTMLCanvasElement>('.reveal')!;
+    const ring = hero.querySelector<HTMLElement>('.ring')!;
+    const label = hero.querySelector<HTMLElement>('.idle-label')!;
+    const topCtx = topCanvas.getContext('2d')!;
+    const revealCtx = revealCanvas.getContext('2d')!;
+    const cache = document.createElement('canvas');
+    const cacheCtx = cache.getContext('2d')!;
+    const mask = document.createElement('canvas');
+    const maskCtx = mask.getContext('2d')!;
+
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const small = innerWidth * Math.min(devicePixelRatio || 1, 2) < 1500;
+    const load = (src: string) =>
+      new Promise<HTMLImageElement>((res, rej) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = rej;
+        im.src = src;
+      });
+
+    let baseImg: HTMLImageElement | null = null;
+    let revealImg: HTMLImageElement | null = null;
+    let W = 0, H = 0, dpr = 1, ready = false;
+
+    // Cover-fit : même maths pour les deux images, donc alignement parfait.
+    function cover(img: HTMLImageElement, w: number, h: number) {
+      const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+      return { dx: (w - dw) / 2, dy: (h - dh) / 2, dw, dh };
+    }
+
+    function resize() {
+      const r = hero.getBoundingClientRect();
+      W = Math.max(1, Math.round(r.width));
+      H = Math.max(1, Math.round(r.height));
+      dpr = Math.min(devicePixelRatio || 1, 2);
+      const pw = Math.max(1, Math.round(W * dpr)), ph = Math.max(1, Math.round(H * dpr));
+      for (const c of [topCanvas, revealCanvas, cache]) { c.width = pw; c.height = ph; }
+      mask.width = Math.max(1, Math.round(W * MASK_SCALE));
+      mask.height = Math.max(1, Math.round(H * MASK_SCALE));
+      if (!baseImg || !revealImg || r.width < 1 || r.height < 1) { ready = false; return; }
+      let g = cover(revealImg, pw, ph);
+      revealCtx.drawImage(revealImg, g.dx, g.dy, g.dw, g.dh);   // couche statique, dessinée une seule fois
+      g = cover(baseImg, pw, ph);
+      cacheCtx.drawImage(baseImg, g.dx, g.dy, g.dw, g.dh);       // image de base pré-rendue
+      ready = true;
+    }
+
+    // ───────── état du pinceau ─────────
+    type Stamp = { x: number; y: number; t0: number; phase: number; rot: number };
+    const stamps: Stamp[] = [];
+    let tx = 0, ty = 0, sx = 0, sy = 0, lastX = 0, lastY = 0, hasLast = false;
+    let inside = false, idle = 1, wasTouch = false;
+
+    const smooth = (x: number) => x * x * (3 - 2 * x);
+
+    function blobPath(path: Path2D, cx: number, cy: number, R: number, t: number, phase: number, rot: number) {
+      const pts: [number, number][] = [];
+      for (let i = 0; i < SAMPLES; i++) {
+        const a = (i / SAMPLES) * Math.PI * 2;
+        const rr = R * (1 + 0.085 * Math.sin(3 * a + t + phase) + 0.048 * Math.sin(5 * a - 1.15 * t + phase * 1.7) + 0.022 * Math.sin(9 * a + 0.6 * t + phase * 2.3));
+        pts.push([cx + Math.cos(a + rot) * rr, cy + Math.sin(a + rot) * rr]);
+      }
+      // Spline de Catmull-Rom fermée, émise en courbes de Bézier.
+      path.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 0; i < SAMPLES; i++) {
+        const p0 = pts[(i - 1 + SAMPLES) % SAMPLES], p1 = pts[i], p2 = pts[(i + 1) % SAMPLES], p3 = pts[(i + 2) % SAMPLES];
+        path.bezierCurveTo(
+          p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6,
+          p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6,
+          p2[0], p2[1]
+        );
+      }
+      path.closePath();
+    }
+
+    const radius = () => BASE_RADIUS * Math.min(W, H);
+
+    function addStamp(x: number, y: number, now: number) {
+      stamps.push({ x, y, t0: now, phase: Math.random() * 6.28, rot: Math.random() * 6.28 });
+    }
+
+    // ───────── entrées ─────────
+    function localPoint(e: PointerEvent) {
+      const r = hero.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top, inHero: e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom };
+    }
+
+    function onMove(e: PointerEvent) {
+      const p = localPoint(e);
+      wasTouch = e.pointerType === 'touch';
+      if (!p.inHero) { if (inside) leave(); return; }
+      if (!inside) {
+        inside = true; sx = tx = lastX = p.x; sy = ty = lastY = p.y; hasLast = false; // snap
+      }
+      tx = p.x; ty = p.y;
+      const overLink = !!(e.target as Element | null)?.closest?.('a, button');
+      ring.classList.toggle('on', !wasTouch && !overLink);
+      ring.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    }
+    function leave() { inside = false; hasLast = false; ring.classList.remove('on'); }
+
+    document.addEventListener('pointermove', onMove, { passive: true });
+    document.addEventListener('pointerdown', onMove, { passive: true });
+    document.documentElement.addEventListener('pointerleave', leave);
+    hero.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') leave(); });
+    hero.addEventListener('pointercancel', leave);
+
+    // ───────── boucle ─────────
+    let prev = performance.now();
+    function frame(nowMs: number) {
+      requestAnimationFrame(frame);
+      const dt = Math.min(0.05, (nowMs - prev) / 1000);
+      prev = nowMs;
+      if (!ready || W < 1 || H < 1) return;
+      const now = nowMs / 1000;
+      const R = radius();
+
+      if (inside) {
+        const k = 1 - Math.pow(1 - FOLLOW, dt * 60);
+        sx += (tx - sx) * k; sy += (ty - sy) * k;
+        if (!wasTouch) ring.style.transform = `translate(${sx + hero.getBoundingClientRect().left}px, ${sy + hero.getBoundingClientRect().top}px)`;
+        // empreintes à distance fixe le long du chemin du suiveur
+        const step = Math.max(2, STEP * R);
+        if (!hasLast) { addStamp(sx, sy, now); lastX = sx; lastY = sy; hasLast = true; }
+        let d = Math.hypot(sx - lastX, sy - lastY);
+        while (d >= step) {
+          const f = step / d;
+          lastX += (sx - lastX) * f; lastY += (sy - lastY) * f;
+          addStamp(lastX, lastY, now);
+          d = Math.hypot(sx - lastX, sy - lastY);
+        }
+      }
+
+      // vie des empreintes : on supprime les plus vieilles
+      while (stamps.length && now - stamps[0].t0 > LIFE) stamps.shift();
+
+      // état de repos (blob parqué), avec easing smoothstep
+      const target = inside ? 0 : 1;
+      idle += Math.sign(target - idle) * Math.min(Math.abs(target - idle), dt / 0.7);
+      const ie = smooth(Math.max(0, Math.min(1, idle)));
+
+      // un seul chemin pour toutes les empreintes (union, remplissage nonzero)
+      const ms = MASK_SCALE;
+      const path = new Path2D();
+      for (const s of stamps) {
+        const age = (now - s.t0) / LIFE;
+        const r = R * Math.pow(Math.max(0, 1 - age), 0.85);
+        if (r < 0.5) continue;
+        blobPath(path, s.x * ms, s.y * ms, r * ms, now * 1.3, s.phase, s.rot);
+      }
+      let lx = 0, ly = 0;
+      if (ie > 0.001) {
+        const g = cover(baseImg!, W, H);
+        lx = g.dx + IDLE_POS.x * g.dw; ly = g.dy + IDLE_POS.y * g.dh;
+        const mx = Math.max(R * 0.6, label.offsetWidth / 2 + 14);
+        lx = Math.max(mx, Math.min(W - mx, lx)); ly = Math.max(R * 0.6, Math.min(H - R * 0.6, ly));
+        const t = reduceMotion ? 0 : now * 0.55;
+        const breathe = reduceMotion ? 1 : 1 + 0.06 * Math.sin(now * 0.9);
+        blobPath(path, lx * ms, ly * ms, R * 0.78 * ie * breathe * ms, t, 1.3, 0.4);
+      }
+      label.style.opacity = String(Math.max(0, ie - 0.15) / 0.85);
+      label.style.transform = `translate(${lx - label.offsetWidth / 2}px, ${ly - label.offsetHeight / 2}px)`;
+
+      // masque (petit) : dessiné plein, ombre décalée pour obtenir des bords adoucis
+      maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+      maskCtx.clearRect(0, 0, mask.width, mask.height);
+      const OFF = mask.width + 400;
+      maskCtx.shadowColor = '#000';
+      maskCtx.shadowBlur = Math.max(1, 2 * FEATHER * R * ms);
+      maskCtx.shadowOffsetX = OFF;
+      maskCtx.shadowOffsetY = 0;
+      maskCtx.fillStyle = '#000';
+      maskCtx.setTransform(1, 0, 0, 1, -OFF, 0);
+      maskCtx.fill(path, 'nonzero');
+      maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+      maskCtx.shadowColor = 'transparent';
+
+      // calque du dessus : image de base, puis on perce avec le masque agrandi
+      topCtx.setTransform(1, 0, 0, 1, 0, 0);
+      topCtx.globalCompositeOperation = 'copy';
+      topCtx.drawImage(cache, 0, 0);
+      topCtx.globalCompositeOperation = 'destination-out';
+      topCtx.imageSmoothingEnabled = true;
+      topCtx.imageSmoothingQuality = 'low';
+      topCtx.drawImage(mask, 0, 0, topCanvas.width, topCanvas.height);
+      topCtx.globalCompositeOperation = 'source-over';
+    }
+
+    // ───────── démarrage ─────────
+    const q = small ? 'sm' : 'lg';
+    Promise.all([load(hero.dataset['base' + (q === 'sm' ? 'Sm' : 'Lg')]!), load(hero.dataset['reveal' + (q === 'sm' ? 'Sm' : 'Lg')]!)])
+      .then(([b, r]) => { baseImg = b; revealImg = r; resize(); requestAnimationFrame(frame); })
+      .catch((err) => console.error('Hero images failed to load', err));
+
+    addEventListener('resize', resize);
+    new ResizeObserver(resize).observe(hero);
+  }
+</script>

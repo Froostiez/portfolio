@@ -1,0 +1,45 @@
+:root {
+  --bg: #0f0e14;
+  --bg-2: #181722;
+  --text: #f3eff8;
+  --muted: #a9a3b8;
+  --accent: #c9b8ff;
+  --pink: #ffa8cf;
+  --line: rgba(255, 255, 255, 0.12);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+a { color: inherit; }
+.page { max-width: 1000px; margin: 0 auto; padding: 120px 24px 80px; }
+.page h1 { font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.03em; margin: 0 0 12px; font-weight: 800; }
+.page .lead { color: var(--muted); max-width: 60ch; font-size: 1.1rem; margin: 0 0 48px; }
+.grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.card {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 18px; padding: 22px;
+  text-decoration: none; display: block; transition: transform .2s ease, border-color .2s ease;
+}
+a.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+.card h3 { margin: 0 0 6px; font-size: 1.2rem; }
+.card p { margin: 0 0 14px; color: var(--muted); font-size: .95rem; }
+.meta { color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: .75rem; color: var(--accent); }
+.section { margin-top: 56px; }
+.section h2 { font-size: 1.3rem; margin: 0 0 16px; }
+.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.list li { color: var(--muted); }
+.list b { color: var(--text); font-weight: 600; }
+.btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 999px;
+  text-decoration: none; font-weight: 600; font-size: .95rem; border: 1px solid transparent;
+}
+.pill.glass { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; }
+.pill.solid { background: #fff; color: #111; }
