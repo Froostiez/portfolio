@@ -1,7 +1,7 @@
 # Portfolio de Ferdinand Lacroix
 
 Site statique Astro (TypeScript) : CV virtuel avec un hero interactif, une page Projets et un lab d'expériences.
-En ligne : https://froostiez.github.io/portfolio/ (repo `Froostiez/portfolio`, GitHub Pages via Actions).
+En ligne : [froostiez.github.io/portfolio](https://froostiez.github.io/portfolio/) (page Projets : [/projects](https://froostiez.github.io/portfolio/projects/)) (repo `Froostiez/portfolio`, GitHub Pages via Actions).
 
 ## Commandes (PowerShell)
 
@@ -53,6 +53,6 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 
 - Lab : ajouter d'autres expériences (un second hero est prévu).
 - Miette : ajouter une description plus précise ou des captures si besoin (le code peut être fourni).
-- Favicon : aucun fichier pour l'instant, à choisir plus tard.
+- Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : relus et étoffés dans une autre discussion.
 - Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.

@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
+import { url } from '../utils';
 const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d’expériences.', hero = false } = Astro.props;
 ---
 <!doctype html>
@@ -10,6 +11,11 @@ const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d�
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <title>{title}</title>
+    <link rel="icon" href={url('/favicon.svg')} type="image/svg+xml" />
+    <link rel="icon" href={url('/favicon-32.png')} type="image/png" sizes="32x32" />
+    <link rel="icon" href={url('/favicon.ico')} sizes="any" />
+    <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
+    <meta name="theme-color" content="#0f0e14" />
   </head>
   <body class:list={{ 'has-hero': hero }}>
     <Nav overlay={hero} />
