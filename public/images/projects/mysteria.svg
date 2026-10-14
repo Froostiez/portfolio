@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="75%">
+      <stop offset="0" stop-color="#5b2d97"/><stop offset="0.6" stop-color="#3f1f78"/><stop offset="1" stop-color="#25104a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6dc9a"/><stop offset="0.5" stop-color="#e0b85e"/><stop offset="1" stop-color="#c3964a"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="58" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="98" fill="none" stroke="url(#gold)" stroke-width="4.5"/>
+  <g fill="url(#gold)">
+    <!-- 4 grandes pointes -->
+    <path d="M128 38 L134.5 121.5 L128 128 L121.5 121.5 Z"/>
+    <path d="M128 218 L134.5 134.5 L128 128 L121.5 134.5 Z"/>
+    <path d="M38 128 L121.5 121.5 L128 128 L121.5 134.5 Z"/>
+    <path d="M218 128 L134.5 121.5 L128 128 L134.5 134.5 Z"/>
+    <!-- 4 petites pointes diagonales -->
+    <g transform="rotate(45 128 128)">
+      <path d="M128 88 L133 123.5 L128 128 L123 123.5 Z"/>
+      <path d="M128 168 L133 132.5 L128 128 L123 132.5 Z"/>
+      <path d="M88 128 L123.5 123 L128 128 L123.5 133 Z"/>
+      <path d="M168 128 L132.5 123 L128 128 L132.5 133 Z"/>
+    </g>
+  </g>
+  <circle cx="128" cy="128" r="11.5" fill="#2a1450"/>
+  <circle cx="128" cy="128" r="11.5" fill="none" stroke="url(#gold)" stroke-width="1.5" opacity=".6"/>
+</svg>

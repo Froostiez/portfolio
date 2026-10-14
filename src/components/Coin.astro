@@ -1,0 +1,166 @@
+---
+// Pièce 3D (three.js) : vrai volume, bord surélevé, tranche cannelée en dégradé cuivre vers bleu,
+// reflets métalliques. Glisser pour la faire tourner.
+const { front, back, size = 140, label = '' } = Astro.props;
+---
+<div class="coin-scene" data-coin data-front={front} data-back={back} style={`--size:${size}px`} role="img" aria-label={label}>
+  <img class="fallback" src={front} alt="" draggable="false" />
+  <canvas></canvas>
+</div>
+
+<style>
+  .coin-scene { position: relative; width: var(--size); height: var(--size); cursor: grab; flex: none; touch-action: pan-y; }
+  .coin-scene:active { cursor: grabbing; }
+  canvas, .fallback { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .fallback { object-fit: contain; user-select: none; -webkit-user-drag: none; }
+  canvas { opacity: 0; transition: opacity .3s ease; }
+  :global(.coin-scene.ready) canvas { opacity: 1; }
+  :global(.coin-scene.ready) .fallback { visibility: hidden; }
+</style>
+
+<script>
+  import * as THREE from 'three';
+  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  document.querySelectorAll<HTMLElement>('[data-coin]').forEach((scene) => {
+    const canvas = scene.querySelector('canvas')!;
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    } catch {
+      return; // pas de WebGL : l'image fixe reste affichée
+    }
+    const size = scene.getBoundingClientRect().width || 140;
+    // Rendu en suréchantillonnage : au moins x2 même sur un écran standard, puis réduit par le navigateur (bords et détails plus nets)
+    renderer.setPixelRatio(Math.min(Math.max(devicePixelRatio || 1, 2), 3));
+    renderer.setSize(size, size, false);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const three = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    three.environment = pmrem.fromScene(new RoomEnvironment(), 0.03).texture;
+
+    const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 20);
+    camera.position.set(0, 0, 5.6);
+
+    const key = new THREE.DirectionalLight(0xfff1d6, 2.4);
+    key.position.set(2.5, 3, 4);
+    three.add(key);
+    const rimLight = new THREE.DirectionalLight(0x6aa8ff, 1.4);
+    rimLight.position.set(-3, -1.5, 2.5);
+    three.add(rimLight);
+
+    // ───── dimensions (rayon = 1) ─────
+    const H = 0.085;          // demi-épaisseur
+    const LIP_IN = 0.9;       // rayon intérieur du bord surélevé
+    const RECESS = 0.035;     // retrait du champ par rapport au bord
+    const SEG = 160;
+
+    const coin = new THREE.Group();
+    three.add(coin);
+
+    // Bord surélevé + biseaux (révolution d'un profil), doré
+    const EDGE = H - 0.022;   // la tranche cannelée occupe presque toute l'épaisseur
+    const prof: THREE.Vector2[] = [
+      [LIP_IN, H - RECESS], [LIP_IN, H - 0.004], [LIP_IN + 0.015, H], [0.96, H], [0.988, H - 0.008],
+      [1.0, H - 0.022],
+      [1.0, -(H - 0.022)], [0.988, -(H - 0.008)], [0.96, -H],
+      [LIP_IN + 0.015, -H], [LIP_IN, -(H - 0.004)], [LIP_IN, -(H - RECESS)],
+    ].map(([x, y]) => new THREE.Vector2(x, y));
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0xd8a640, metalness: 1, roughness: 0.26, envMapIntensity: 1.25 });
+    const rim = new THREE.Mesh(new THREE.LatheGeometry(prof, SEG), rimMat);
+    rim.rotation.x = Math.PI / 2;
+    coin.add(rim);
+
+    // Tranche cannelée : dégradé cuivre (face avant) vers bleu (face arrière) sur toute l'épaisseur
+    const grad = document.createElement('canvas');
+    grad.width = 8; grad.height = 256;
+    const g = grad.getContext('2d')!;
+    const lg = g.createLinearGradient(0, 0, 0, 256);
+    lg.addColorStop(0.0, '#e08a4a');
+    lg.addColorStop(0.3, '#b9672f');
+    lg.addColorStop(0.55, '#6b6a9a');
+    lg.addColorStop(0.78, '#2d63c9');
+    lg.addColorStop(1.0, '#4d93ff');
+    g.fillStyle = lg; g.fillRect(0, 0, 8, 256);
+    const edgeMap = new THREE.CanvasTexture(grad);
+    edgeMap.colorSpace = THREE.SRGBColorSpace;
+
+    const reed = document.createElement('canvas');
+    reed.width = 1024; reed.height = 8;
+    const r = reed.getContext('2d')!;
+    const STRIPES = 110;
+    for (let x = 0; x < reed.width; x++) {
+      const t = ((x / reed.width) * STRIPES) % 1;
+      const v = Math.round(255 * (t < 0.5 ? t * 2 : 2 - t * 2)); // triangle : crêtes et creux nets
+      r.fillStyle = `rgb(${v},${v},${v})`; r.fillRect(x, 0, 1, 8);
+    }
+    const reedMap = new THREE.CanvasTexture(reed);
+    reedMap.wrapS = THREE.RepeatWrapping;
+
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, map: edgeMap, metalness: 1, roughness: 0.34, bumpMap: reedMap, bumpScale: 1.4, envMapIntensity: 1.3,
+    });
+    const edge = new THREE.Mesh(new THREE.CylinderGeometry(1.002, 1.002, EDGE * 2, SEG, 1, true), edgeMat);
+    edge.rotation.x = Math.PI / 2;
+    // L'axe de la pièce est Z : le haut du cylindre (y+) doit pointer vers la face avant (z+)
+    coin.add(edge);
+
+    // Faces (images) en léger relief
+    const loader = new THREE.TextureLoader();
+    function face(src: string, flip: boolean) {
+      const tex = loader.load(src, () => { done++; if (done === 2) { scene.classList.add('ready'); } });
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      const m = new THREE.MeshStandardMaterial({
+        map: tex, bumpMap: tex, bumpScale: 0.7, metalness: 0, roughness: 0.85, alphaTest: 0.5, envMapIntensity: 0.22, toneMapped: false, color: 0xaaaaaa,
+      });
+      const mesh = new THREE.Mesh(new THREE.CircleGeometry(LIP_IN + 0.004, SEG), m);
+      mesh.position.z = (flip ? -1 : 1) * (H - RECESS);
+      if (flip) mesh.rotation.y = Math.PI;
+      coin.add(mesh);
+    }
+    let done = 0;
+    face(scene.dataset.front!, false);
+    face(scene.dataset.back!, true);
+
+    // ───── interaction ─────
+    let angle = reduce ? 0.7 : Math.random() * 6.28, vel = 0, tilt = reduce ? -0.14 : 0.18;
+    let dragging = false, lastX = 0, visible = true, hover = false;
+    const BASE = 0.011;
+    vel = reduce ? 0 : BASE;
+
+    scene.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; scene.setPointerCapture(e.pointerId); });
+    scene.addEventListener('pointermove', (e) => {
+      if (dragging) { const dx = e.clientX - lastX; vel = dx * 0.012; angle += dx * 0.012; lastX = e.clientX; }
+      const b = scene.getBoundingClientRect();
+      tilt = ((e.clientY - b.top) / b.height - 0.5) * -0.7;
+    });
+    const end = () => { dragging = false; };
+    scene.addEventListener('pointerup', end); scene.addEventListener('pointercancel', end);
+    scene.addEventListener('pointerenter', () => (hover = true));
+    scene.addEventListener('pointerleave', () => { hover = false; tilt = reduce ? -0.14 : 0.18; });
+    new IntersectionObserver((en) => { visible = en[0].isIntersecting; }).observe(scene);
+
+    function frame() {
+      requestAnimationFrame(frame);
+      if (!visible) return;
+      if (!dragging) {
+        const target = reduce ? (hover ? BASE * 2 : 0) : hover ? BASE * 3 : BASE;
+        vel += (target - vel) * 0.04;
+        angle += vel;
+      }
+      coin.rotation.set(tilt, angle, 0);
+      renderer.render(three, camera);
+    }
+    frame();
+    (scene as any).__coin = { coin, set(a: number, t: number) { angle = a; tilt = t; vel = 0; } };
+  });
+</script>

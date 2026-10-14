@@ -1,7 +1,11 @@
 ---
 import Base from '../layouts/Base.astro';
+import Coin from '../components/Coin.astro';
 import { projects } from '../content/projects';
 import { url } from '../utils';
+
+const badge = { web: 'Web', android: 'Android', pro: 'Projet pro', lab: 'Lab' } as const;
+const isExternal = (l?: string) => !!l && /^https?:/.test(l);
 ---
 <Base title="Projects · Ferdinand Lacroix">
   <main class="page">
@@ -10,15 +14,41 @@ import { url } from '../utils';
     <div class="grid">
       {projects.map((p) => {
         const Tag = p.link ? 'a' : 'div';
+        const href = p.link ? (isExternal(p.link) ? p.link : url(p.link)) : undefined;
         return (
-          <Tag class="card" href={p.link ? url(p.link) : undefined}>
+          <Tag class="card project" href={href} target={isExternal(p.link) ? '_blank' : undefined} rel={isExternal(p.link) ? 'noopener' : undefined}>
+            {p.watermark && <img class="watermark" src={url(p.watermark)} alt="" loading="lazy" aria-hidden="true" />}
+            <div class="top">
+              {p.logo && p.logoBack ? (
+                <Coin front={url(p.logo)} back={url(p.logoBack)} size={176} label={`Logo ${p.title}`} />
+              ) : p.logo ? (
+                <img class="logo" src={url(p.logo)} alt={`Logo ${p.title}`} width="72" height="72" loading="lazy" />
+              ) : (
+                <div class="logo placeholder" aria-hidden="true">{p.title[0]}</div>
+              )}
+              <span class="badge">{badge[p.kind]}</span>
+            </div>
             <div class="meta">{p.year}</div>
             <h3>{p.title}</h3>
             <p>{p.description}</p>
             <div class="tags">{p.stack.map((s) => <span class="tag">{s}</span>)}</div>
+            {p.link && <span class="go">{p.linkLabel ?? 'Visiter'} →</span>}
           </Tag>
         );
       })}
     </div>
   </main>
 </Base>
+
+<style>
+  .project { display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .watermark { position: absolute; right: -46px; top: -46px; width: 210px; height: 210px; opacity: .16; pointer-events: none; transition: opacity .3s ease, transform .6s ease; }
+  .project:hover .watermark { opacity: .3; transform: rotate(8deg); }
+  .project > :not(.watermark) { position: relative; }
+  .top { display: flex; align-items: center; justify-content: space-between; min-height: 176px; margin-bottom: 10px; }
+  .logo { width: 72px; height: 72px; object-fit: contain; border-radius: 16px; }
+  .placeholder { display: grid; place-items: center; background: var(--bg); border: 1px solid var(--line); font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+  .badge { align-self: flex-start; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+  .go { margin-top: auto; padding-top: 16px; font-size: .9rem; color: var(--accent); }
+  .project .tags { margin-bottom: 0; }
+</style>
