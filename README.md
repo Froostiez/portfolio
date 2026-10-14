@@ -51,9 +51,8 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 
 ## À faire
 
-- Compléter les couleurs "or" du dos de carte Vegamon.
-- Régénérer la face néon de la pièce Vegamon en 1024 px (plus nette).
-- Favicon (`favicon.ico` fourni, pas encore branché).
-- Relire/étoffer les pages About et Contact.
-- Ajouter d'autres expériences au lab ; liens ou captures pour Miette et Choipo si possible.
-- Option : renommer le repo en `Froostiez.github.io` pour une URL sans `/portfolio`.
+- Lab : ajouter d'autres expériences (un second hero est prévu).
+- Miette : ajouter une description plus précise ou des captures si besoin (le code peut être fourni).
+- Favicon : aucun fichier pour l'instant, à choisir plus tard.
+- About et Contact : relus et étoffés dans une autre discussion.
+- Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.
