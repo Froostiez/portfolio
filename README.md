@@ -43,6 +43,16 @@ Liens : vegamon.vercel.app, mysteria-gamma.vercel.app, racketlab-two.vercel.app,
 `public/images/` : `base-*.webp` / `reveal-*.webp` (hero), `projects/<projet>/...`. Dossiers en minuscules.
 Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une couleur fixe : en `<img>` utiliser la variante colorée (`loupe-dark.svg` = crème pour fond sombre). Les originaux lourds ne sont pas dans le repo ; les `card-bg-*.webp` sont des versions allégées (720 px).
 
+## Bilingue FR/EN
+
+- Activé page par page : `<Base ... bilingual>`. Ça affiche le bouton FR/EN dans la nav et choisit la langue (choix mémorisé dans `localStorage`, sinon langue du navigateur).
+- Dans la page, doubler chaque texte : `<span data-l="fr">…</span><span data-l="en">…</span>` (marche aussi sur `p`, `a`, etc.). La règle CSS est dans `global.css`.
+- Pages bilingues : `about`, `contact`. Les autres sont encore en français seul.
+
+## CV
+
+Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de téléchargement apparaît tout seul sur About (s'il n'y a qu'une version, elle sert pour les deux langues).
+
 ## Pièges connus
 
 - Windows : renommer un dossier en changeant seulement la casse demande une étape intermédiaire.
@@ -54,5 +64,6 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 - Lab : ajouter d'autres expériences (un second hero est prévu).
 - Miette : ajouter une description plus précise ou des captures si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
-- About et Contact : relus et étoffés dans une autre discussion.
+- About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).
+- Bilingue : étendre aux pages Accueil, Projects et Lab si voulu.
 - Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.

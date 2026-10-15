@@ -1,6 +1,6 @@
 ---
 import { url } from '../utils';
-const { overlay = false } = Astro.props;
+const { overlay = false, bilingual = false } = Astro.props;
 const links = [
   { href: '/projects', label: 'Projects' },
   { href: '/lab', label: 'Lab' },
@@ -12,8 +12,24 @@ const links = [
   <nav class="links">
     {links.map((l) => <a href={url(l.href)}>{l.label}</a>)}
   </nav>
+  {bilingual && (
+    <button class="lang" type="button" aria-label="Changer de langue / Switch language">
+      <span data-v="fr">FR</span><span class="sep">/</span><span data-v="en">EN</span>
+    </button>
+  )}
   <a class="pill glass contact" href={url('/contact')}>Contact</a>
 </header>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>('.nav .lang');
+  btn?.addEventListener('click', () => {
+    const root = document.documentElement;
+    const next = root.dataset.lang === 'en' ? 'fr' : 'en';
+    root.dataset.lang = next;
+    root.lang = next;
+    try { localStorage.setItem('lang', next); } catch (e) {}
+  });
+</script>
 
 <style>
   .nav {
@@ -28,5 +44,13 @@ const links = [
   .links a { text-decoration: none; color: rgba(255,255,255,.85); font-size: .95rem; }
   .links a:hover { color: #fff; }
   .contact { padding: 8px 18px; }
-  @media (max-width: 820px) { .links { display: none; } .nav { padding: 16px 18px; } }
+  .lang {
+    background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px;
+    color: rgba(255,255,255,.5); font: inherit; font-size: .8rem; font-weight: 600; letter-spacing: .04em; cursor: pointer;
+  }
+  .lang:hover { border-color: rgba(255,255,255,.35); }
+  .lang .sep { margin: 0 4px; opacity: .5; }
+  :global(html:not([data-lang="en"])) .lang [data-v="fr"],
+  :global(html[data-lang="en"]) .lang [data-v="en"] { color: #fff; }
+  @media (max-width: 820px) { .links { display: none; } .nav { padding: 16px 18px; } .lang { margin-left: auto; } }
 </style>

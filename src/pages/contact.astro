@@ -1,13 +1,33 @@
 ---
 import Base from '../layouts/Base.astro';
+
+const links = [
+  { label: 'ferdilac@gmail.com', href: 'mailto:ferdilac@gmail.com', solid: true },
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/ferdinand-lacroix-b0a8a21bb/' },
+  { label: 'GitHub', href: 'https://github.com/Froostiez' },
+];
 ---
-<Base title="Contact · Ferdinand Lacroix">
+<Base title="Contact · Ferdinand Lacroix" bilingual>
   <main class="page">
     <h1>Contact</h1>
-    <p class="lead">Un projet, une question, une idée à tester ensemble ?</p>
+    <p class="lead" data-l="fr">Un stage, un projet, une question ou une idée à tester ensemble ? Écris-moi, je réponds vite. Je parle français, espagnol et anglais.</p>
+    <p class="lead" data-l="en">An internship, a project, a question or an idea to try out together? Drop me a line, I answer quickly. I speak French, Spanish and English.</p>
     <div class="btn-row">
-      <a class="pill solid" href="mailto:ferdilac@gmail.com">ferdilac@gmail.com</a>
-      <!-- Ajoute ici tes liens GitHub et LinkedIn -->
+      {links.map((l) => (
+        <a
+          class:list={['pill', l.solid ? 'solid' : 'glass']}
+          href={l.href}
+          {...(l.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {})}
+        >{l.label}</a>
+      ))}
     </div>
+    <p class="where">
+      <span data-l="fr">Actuellement à Madrid (UC3M), sinon Paris.</span>
+      <span data-l="en">Currently in Madrid (UC3M), otherwise Paris.</span>
+    </p>
   </main>
 </Base>
+
+<style>
+  .where { color: var(--muted); font-size: .9rem; margin-top: 32px; }
+</style>

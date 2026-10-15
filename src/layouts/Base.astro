@@ -2,7 +2,7 @@
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import { url } from '../utils';
-const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d’expériences.', hero = false } = Astro.props;
+const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d’expériences.', hero = false, bilingual = false } = Astro.props;
 ---
 <!doctype html>
 <html lang="fr">
@@ -16,9 +16,20 @@ const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d�
     <link rel="icon" href={url('/favicon.ico')} sizes="any" />
     <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
     <meta name="theme-color" content="#0f0e14" />
+    {bilingual && (
+      <script is:inline>
+        (function () {
+          var l = null;
+          try { l = localStorage.getItem('lang'); } catch (e) {}
+          if (l !== 'fr' && l !== 'en') l = (navigator.language || 'fr').slice(0, 2) === 'fr' ? 'fr' : 'en';
+          document.documentElement.dataset.lang = l;
+          document.documentElement.lang = l;
+        })();
+      </script>
+    )}
   </head>
   <body class:list={{ 'has-hero': hero }}>
-    <Nav overlay={hero} />
+    <Nav overlay={hero} bilingual={bilingual} />
     <slot />
   </body>
 </html>

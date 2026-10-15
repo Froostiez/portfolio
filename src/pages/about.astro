@@ -1,35 +1,117 @@
 ---
+import fs from 'node:fs';
 import Base from '../layouts/Base.astro';
+import { url } from '../utils';
+
+// Le bouton CV n'apparaît que si le PDF existe dans public/cv/.
+const cv = {
+  fr: fs.existsSync('public/cv/cv-fr.pdf'),
+  en: fs.existsSync('public/cv/cv-en.pdf'),
+};
+
+const skills = [
+  { fr: 'Langages', en: 'Languages', items: ['Python', 'TypeScript', 'JavaScript', 'Java', 'SQL', 'Bash'] },
+  { fr: 'Web et mobile', en: 'Web and mobile', items: ['Next.js', 'React', 'Astro', 'React Native', 'Expo', 'Tailwind', 'Three.js'] },
+  { fr: 'Data', en: 'Data', items: ['NumPy', 'XGBoost', 'Postgres', 'SQLite'] },
+  { fr: 'Outils', en: 'Tools', items: ['Git', 'Vercel', 'VS Code', 'JavaFX'] },
+];
 ---
-<Base title="About · Ferdinand Lacroix">
-  <main class="page">
+<Base title="About · Ferdinand Lacroix" bilingual>
+  <main class="page about">
     <h1>About</h1>
-    <p class="lead">Étudiant ingénieur à Télécom SudParis (Institut Polytechnique de Paris), curieux de tout ce qui mêle code, données et idées visuelles.</p>
+    <p class="lead" data-l="fr">Étudiant ingénieur à Télécom SudParis (Institut Polytechnique de Paris), curieux de tout ce qui mêle code, données et idées visuelles. J’aime construire des choses qu’on peut toucher : un jeu, une app, une expérience interactive.</p>
+    <p class="lead" data-l="en">Engineering student at Télécom SudParis (Institut Polytechnique de Paris), curious about anything that mixes code, data and visual ideas. I like building things people can actually play with: a game, an app, an interactive experiment.</p>
+
+    {(cv.fr || cv.en) && (
+      <div class="btn-row cv">
+        {cv.fr && <a class="pill solid" data-l="fr" href={url('/cv/cv-fr.pdf')} download>Télécharger mon CV (PDF)</a>}
+        {cv.en && <a class="pill solid" data-l="en" href={url('/cv/cv-en.pdf')} download>Download my resume (PDF)</a>}
+        {cv.fr && !cv.en && <a class="pill solid" data-l="en" href={url('/cv/cv-fr.pdf')} download>Download my resume (PDF, French)</a>}
+        {cv.en && !cv.fr && <a class="pill solid" data-l="fr" href={url('/cv/cv-en.pdf')} download>Télécharger mon CV (PDF, anglais)</a>}
+      </div>
+    )}
 
     <section class="section">
-      <h2>Parcours</h2>
+      <h2><span data-l="fr">Parcours</span><span data-l="en">Education and experience</span></h2>
       <ul class="list">
-        <li><b>Télécom SudParis</b> · cycle ingénieur, réseaux, traitement du signal, bases de données, télécoms, développement logiciel</li>
-        <li><b>UC3M, Madrid</b> · semestre d’échange en 2e année</li>
-        <li><b>Blissim</b> · stage Data &amp; Tools, été 2026</li>
-        <li><b>Classes préparatoires</b> · PCSI/PSI, Lycée Saint-Louis</li>
+        <li><b>Télécom SudParis</b> · <span data-l="fr">cycle ingénieur : réseaux, traitement du signal, bases de données, télécoms, développement logiciel</span><span data-l="en">engineering degree: networks, signal processing, databases, telecommunications, software development</span></li>
+        <li><b>UC3M, Madrid</b> · <span data-l="fr">semestre d’échange en 2e année</span><span data-l="en">exchange semester, 2nd year</span></li>
+        <li><b>Blissim</b> · <span data-l="fr">stage Data &amp; Tools, été 2026</span><span data-l="en">Data &amp; Tools intern, summer 2026</span></li>
+        <li><b><span data-l="fr">Classes préparatoires</span><span data-l="en">Preparatory classes</span></b> · <span data-l="fr">PCSI/PSI, Lycée Saint-Louis (Paris)</span><span data-l="en">PCSI/PSI (maths and physics), Lycée Saint-Louis, Paris</span></li>
+        <li><b>Lycée Français de Barcelone</b> · <span data-l="fr">baccalauréat, mention très bien</span><span data-l="en">French baccalauréat, highest honours</span></li>
       </ul>
     </section>
 
     <section class="section">
-      <h2>Compétences</h2>
-      <div class="tags">
-        {['Python', 'NumPy', 'XGBoost', 'Java', 'JavaFX', 'SQL', 'Bash'].map((s) => <span class="tag">{s}</span>)}
+      <h2><span data-l="fr">Un parcours international</span><span data-l="en">An international path</span></h2>
+      <div class="cities">
+        <div><b>Prague</b><span><span data-l="fr">0-3 ans</span><span data-l="en">age 0-3</span></span></div>
+        <div><b>Buenos Aires</b><span><span data-l="fr">3-8 ans</span><span data-l="en">age 3-8</span></span></div>
+        <div><b>Barcelona</b><span><span data-l="fr">14-18 ans</span><span data-l="en">age 14-18</span></span></div>
+        <div><b>Paris</b><span><span data-l="fr">prépa, école</span><span data-l="en">prépa, school</span></span></div>
+        <div><b>Madrid</b><span>2026</span></div>
+      </div>
+      <p class="muted" data-l="fr">Né à Prague, j’ai grandi entre l’Argentine et l’Espagne au gré des postes de mon père, dans un environnement hispanophone et très multiculturel. S’adapter vite à un nouveau pays, une nouvelle langue et une nouvelle équipe est devenu une habitude.</p>
+      <p class="muted" data-l="en">Born in Prague, I grew up between Argentina and Spain as my father’s job moved us around, in a Spanish-speaking and highly multicultural environment. Adapting quickly to a new country, language and team has become second nature.</p>
+    </section>
+
+    <section class="section">
+      <h2><span data-l="fr">Engagement associatif</span><span data-l="en">Student life</span></h2>
+      <ul class="list">
+        <li><b>Déclic</b> · <span data-l="fr">vice-président du club photo</span><span data-l="en">vice-president of the photography club</span></li>
+        <li><b>Xtreme</b> · <span data-l="fr">logistique et événements du club outdoor, organisation d’un Bike &amp; Run entre les écoles d’IP Paris</span><span data-l="en">logistics and events for the outdoor club, organising a Bike &amp; Run race between IP Paris schools</span></li>
+      </ul>
+    </section>
+
+    <section class="section">
+      <h2><span data-l="fr">Compétences</span><span data-l="en">Skills</span></h2>
+      <div class="skills">
+        {skills.map((g) => (
+          <div class="skill-group">
+            <p class="meta"><span data-l="fr">{g.fr}</span><span data-l="en">{g.en}</span></p>
+            <div class="tags">{g.items.map((s) => <span class="tag">{s}</span>)}</div>
+          </div>
+        ))}
       </div>
     </section>
 
     <section class="section">
-      <h2>Langues</h2>
+      <h2><span data-l="fr">Langues</span><span data-l="en">Languages</span></h2>
       <ul class="list">
-        <li><b>Français</b> · langue maternelle</li>
-        <li><b>Espagnol</b> · bilingue</li>
-        <li><b>Anglais</b> · C1-C2</li>
+        <li><b><span data-l="fr">Français</span><span data-l="en">French</span></b> · <span data-l="fr">langue maternelle</span><span data-l="en">native</span></li>
+        <li><b><span data-l="fr">Espagnol</span><span data-l="en">Spanish</span></b> · <span data-l="fr">bilingue</span><span data-l="en">bilingual</span></li>
+        <li><b><span data-l="fr">Anglais</span><span data-l="en">English</span></b> · C1-C2</li>
       </ul>
+    </section>
+
+    <section class="section">
+      <h2><span data-l="fr">Centres d’intérêt</span><span data-l="en">Interests</span></h2>
+      <div class="tags">
+        <span class="tag"><span data-l="fr">Mathématiques</span><span data-l="en">Mathematics</span></span>
+        <span class="tag"><span data-l="fr">Économie</span><span data-l="en">Economics</span></span>
+        <span class="tag"><span data-l="fr">Culture japonaise et coréenne</span><span data-l="en">Japanese and Korean culture</span></span>
+        <span class="tag"><span data-l="fr">Escrime (fleuret)</span><span data-l="en">Fencing (foil)</span></span>
+        <span class="tag">Tennis</span>
+        <span class="tag">Volleyball</span>
+        <span class="tag">Ultimate</span>
+        <span class="tag">Ski</span>
+        <span class="tag"><span data-l="fr">Photographie</span><span data-l="en">Photography</span></span>
+        <span class="tag"><span data-l="fr">Jeux vidéo</span><span data-l="en">Video games</span></span>
+      </div>
     </section>
   </main>
 </Base>
+
+<style>
+  .cv { margin: -24px 0 8px; }
+  .muted { color: var(--muted); max-width: 65ch; margin: 16px 0 0; }
+  .cities { display: flex; flex-wrap: wrap; gap: 10px; }
+  .cities > div {
+    display: flex; flex-direction: column; padding: 10px 16px; min-width: 120px;
+    background: var(--bg-2); border: 1px solid var(--line); border-radius: 14px;
+  }
+  .cities b { font-size: 1rem; }
+  .cities span { color: var(--muted); font-size: .8rem; }
+  .skills { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .skill-group .meta { margin: 0 0 8px; }
+</style>

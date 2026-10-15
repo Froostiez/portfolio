@@ -43,3 +43,7 @@ a.card:hover { transform: translateY(-3px); border-color: var(--accent); }
 }
 .pill.glass { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; }
 .pill.solid { background: #fff; color: #111; }
+
+/* Bilingue : <x data-l="fr">…</x><x data-l="en">…</x>, langue choisie sur <html data-lang> */
+html:not([data-lang="en"]) [data-l="en"],
+html[data-lang="en"] [data-l="fr"] { display: none !important; }
