@@ -23,6 +23,13 @@ export const experiments: Experiment[] = [
     tags: ['canvas', 'interaction', 'ia-images'],
   },
   {
+    slug: 'glace-et-lave',
+    title: 'Glace et lave',
+    date: '2026-10',
+    description: 'Brush reveal sur un canyon gelé sous une aurore boréale. Le curseur fait fondre la glace : la rivière devient lave, le volcan entre en éruption, la porte du temple rougeoie.',
+    tags: ['canvas', 'interaction', 'ia-images'],
+  },
+  {
     slug: 'champ-de-croix',
     title: 'Champ de croix',
     date: '2026-10',

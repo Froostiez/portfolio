@@ -1,0 +1,10 @@
+---
+// Glace et lave : brush reveal où le curseur fait fondre un canyon gelé et révèle la lave (images générées avec Gemini).
+import BrushReveal from '../BrushReveal.astro';
+const I = '/images/lab/';
+---
+<BrushReveal
+  baseLg={I + 'glace-base-2400.webp'} baseSm={I + 'glace-base-1280.webp'}
+  revealLg={I + 'glace-reveal-2400.webp'} revealSm={I + 'glace-reveal-1280.webp'}
+  label="Melt the ice"
+><slot /></BrushReveal>

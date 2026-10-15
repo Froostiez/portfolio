@@ -19,7 +19,7 @@ Workflow voulu : Claude modifie les fichiers directement dans ce dossier (pas de
 - `src/pages/` : `index` (hero), `projects`, `photo`, `about`, `contact`, `lab/index`, `lab/[slug]`.
 - `src/layouts/Base.astro`, `src/components/Nav.astro` : cadre commun et navigation.
 - `src/components/BrushReveal.astro` : hero. Image sombre (sable noir) recouvrant un canvas qui révèle la prairie de fleurs sous le curseur (blobs procéduraux Catmull-Rom, traînée qui rétrécit, blob au repos "Move to reveal", `prefers-reduced-motion` géré).
-- `BrushReveal` accepte des props `baseLg/baseSm/revealLg/revealSm` (chemins dans `public/`) et `label` ; sans props, il garde les images du hero d'accueil. Variante `heroes/ForestReveal.astro` (images dans `public/images/lab/foret-*`).
+- `BrushReveal` accepte des props `baseLg/baseSm/revealLg/revealSm` (chemins dans `public/`) et `label` ; sans props, il garde les images du hero d'accueil. Variantes `heroes/ForestReveal.astro` (`public/images/lab/foret-*`) et `heroes/IceLavaReveal.astro` (`public/images/lab/glace-*`).
 - `src/components/Coin.astro` : pièce 3D three.js (Vegamon). Tranche cannelée dégradé bleu/cuivre, bump map, supersampling, repli image plate sans WebGL, statique en reduced-motion, rotation au survol/drag.
 - `src/content/projects.ts` : la liste des projets (une entrée = une carte).
 - `src/components/heroes/` : heroes du lab (`CrossField`, `Bokeh`, `Meadow`, `FlowField`, `Petals`), chacun dans un `HeroShell` (plein écran, canvas, voile, `<slot />`). `HeroCopy` = titre type accueil pour les voir en situation. Réglages dans le bloc CONFIG de chaque script.

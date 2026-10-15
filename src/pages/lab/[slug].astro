@@ -7,6 +7,7 @@ import Meadow from '../../components/heroes/Meadow.astro';
 import FlowField from '../../components/heroes/FlowField.astro';
 import Petals from '../../components/heroes/Petals.astro';
 import ForestReveal from '../../components/heroes/ForestReveal.astro';
+import IceLavaReveal from '../../components/heroes/IceLavaReveal.astro';
 import HeroCopy from '../../components/heroes/HeroCopy.astro';
 import { experiments } from '../../content/experiments';
 import { url } from '../../utils';
@@ -19,6 +20,7 @@ export function getStaticPaths() {
 const demos: Record<string, any> = {
   'brush-reveal': BrushReveal,
   'foret': ForestReveal,
+  'glace-et-lave': IceLavaReveal,
   'champ-de-croix': CrossField,
   'mise-au-point': Bokeh,
   'prairie-au-vent': Meadow,
