@@ -21,6 +21,8 @@ Workflow voulu : Claude modifie les fichiers directement dans ce dossier (pas de
 - `src/components/BrushReveal.astro` : hero. Image sombre (sable noir) recouvrant un canvas qui révèle la prairie de fleurs sous le curseur (blobs procéduraux Catmull-Rom, traînée qui rétrécit, blob au repos "Move to reveal", `prefers-reduced-motion` géré).
 - `src/components/Coin.astro` : pièce 3D three.js (Vegamon). Tranche cannelée dégradé bleu/cuivre, bump map, supersampling, repli image plate sans WebGL, statique en reduced-motion, rotation au survol/drag.
 - `src/content/projects.ts` : la liste des projets (une entrée = une carte).
+- `src/components/heroes/` : heroes du lab (`CrossField`, `Bokeh`, `Meadow`, `FlowField`, `Petals`), chacun dans un `HeroShell` (plein écran, canvas, voile, `<slot />`). `HeroCopy` = titre type accueil pour les voir en situation. Réglages dans le bloc CONFIG de chaque script.
+- `src/hero.ts` : boucle commune (canvas net selon le DPR, pointeur lissé avec vitesse, pause hors écran et onglet caché, `prefers-reduced-motion` = image fixe). Pour un nouveau hero : `runHero(root, { init, frame, click })`.
 - `src/content/experiments.ts` : le lab. Ajouter aussi une entrée dans `demos` de `src/pages/lab/[slug].astro`.
 - `src/utils.ts` : `url()` préfixe les chemins avec `import.meta.env.BASE_URL` (obligatoire pour GitHub Pages).
 - `astro.config.mjs` : SITE et BASE lus depuis l'environnement. `.github/workflows/deploy.yml` les calcule (BASE = `/repo`, ou `/` si le repo finit par `.github.io`).
@@ -32,6 +34,7 @@ Champs : `title, year, kind (web|android|pro|lab), description, stack, link, lin
 - `logo` : image du logo. Avec `logoBack`, le logo devient la pièce 3D (face + dos).
 - `watermark` : grand visuel discret, coin haut droit, coupé par le bord (Mysteria : logo runique, RacketLab : `loupe-dark.svg`).
 - `video` / `videoPoster` : vidéo de démo (mp4 1080p d'origine, non recompressé) avec vignette cliquable dans la carte, ouverte dans un lecteur `<dialog>` (Miette : `miette-demo.mp4`).
+- `titleStyle` : titre dans la police et la couleur du site du projet (classes `.t-*` dans `projects.astro`) : Vegamon = Saira Stencil One violet pastel, Mysteria = Cinzel Decorative dégradé bleu-violet, FIRE! = Press Start 2P rouge `#ff4500`, Miette = DM Sans + point `#dc8468`. Polices chargées depuis Google Fonts sur la page Projets seulement, limitées aux lettres des titres (paramètre `text`, à compléter si un titre change). `Base.astro` a un slot `head` pour ce genre d'ajout.
 - `titleImage` : remplace le titre texte par un wordmark (RacketLab : `logo-wordmark-dark.svg`, texte seul rogné à partir du logo horizontal).
 - `background` / `backgroundAlt` : fond de carte, fondu enchaîné vers l'alt au survol (Vegamon : `card-bg-gold.webp` puis `card-bg-neon.webp`). Affichés à la largeur de la carte ; le gold est rogné sur les traits du cadre pour s'aligner avec les bords.
 - `cardBack` / `cardBackAlt` : dos de carte Vegamon dessiné en CSS (treillis, cadre, losange, "V") en filigrane coin haut droit ; palette alt au survol. Couleurs fond/treillis réelles de VGS1 et VGS2 ; les couleurs "or" (`#E0B84F`, `#7FD8FF`) sont des estimations, à remplacer par la couleur de tranche All-in de chaque série.
@@ -69,7 +72,7 @@ Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de télé
 
 ## À faire
 
-- Lab : ajouter d'autres expériences (un second hero est prévu).
+- Lab : 5 nouveaux heroes (champ de croix, mise au point, prairie au vent, champ de flux, pétales). Choisir celui qui remplacera ou complétera l'accueil.
 - Miette : vidéo de démo ajoutée ; description plus précise si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).

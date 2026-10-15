@@ -1,0 +1,113 @@
+---
+// Pétales : des pétales de cerisier tombent, poussés par le curseur, et s'accumulent en bas.
+// Un geste rapide au ras du sol les fait repartir.
+import HeroShell from './HeroShell.astro';
+---
+<HeroShell name="petals" scrim={false}><slot /></HeroShell>
+
+<script>
+  import { runHero } from '../../hero';
+
+  // ───────── CONFIG ─────────
+  const DENSITY = 1 / 17000;   // pétales en l'air par px²
+  const MAX_REST = 340;        // pétales posés au sol (les plus anciens s'effacent)
+  const PUSH_R = 120;
+  const COLORS = ['#ffa8cf', '#ffc4dc', '#ffd9e8', '#f59cc4', '#e8c8ff'];
+  const BACKS = ['#e88db6', '#e9a9c4', '#ecc0d3', '#db86ad', '#cdaee8'];
+
+  document.querySelectorAll<HTMLElement>('[data-hero="petals"]').forEach((root) => {
+    type Petal = { x: number; y: number; vx: number; vy: number; rot: number; vr: number; flip: number; vf: number; s: number; col: number; term: number; rest: boolean; restT: number; alpha: number; gy: number };
+    let air: Petal[] = [];
+    let rest: Petal[] = [];
+    let target = 60;
+
+    const make = (w: number, h: number, top = true): Petal => ({
+      x: Math.random() * w, y: top ? -20 - Math.random() * h * 0.3 : Math.random() * h,
+      vx: 0, vy: 30, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 2.4,
+      flip: Math.random() * 6.28, vf: 1.5 + Math.random() * 2.5, s: 6 + Math.random() * 7,
+      col: (Math.random() * COLORS.length) | 0, term: 38 + Math.random() * 34,
+      rest: false, restT: 0, alpha: 1, gy: h - 3 - Math.random() * 14,
+    });
+
+    const draw = (ctx: CanvasRenderingContext2D, p: Petal) => {
+      const s = p.s, sc = p.rest ? 0.45 : 0.25 + 0.75 * Math.abs(Math.cos(p.flip));
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, sc);
+      ctx.fillStyle = Math.cos(p.flip) < 0 && !p.rest ? BACKS[p.col] : COLORS[p.col];
+      ctx.beginPath();
+      ctx.moveTo(0, s);
+      ctx.bezierCurveTo(-s * 0.95, s * 0.35, -s * 0.8, -s * 0.85, -s * 0.24, -s);
+      ctx.lineTo(0, -s * 0.76);
+      ctx.lineTo(s * 0.24, -s);
+      ctx.bezierCurveTo(s * 0.8, -s * 0.85, s * 0.95, s * 0.35, 0, s);
+      ctx.fill();
+      ctx.restore();
+    };
+
+    runHero(root, {
+      init(c) {
+        target = Math.max(35, Math.min(110, Math.round(c.w * c.h * DENSITY)));
+        air = Array.from({ length: target }, () => make(c.w, c.h, false));
+        rest = rest.filter((p) => p.x < c.w).map((p) => ({ ...p, y: c.h - (c.h - p.y > 20 ? 6 : c.h - p.y) }));
+      },
+      frame(c, t, dt) {
+        const { ctx, w, h, ptr } = c;
+        ctx.clearRect(0, 0, w, h);
+        const speed = Math.hypot(ptr.vx, ptr.vy);
+
+        if (c.reduced) {
+          for (const p of air) draw(ctx, p);
+          return;
+        }
+        const wind = 14 * Math.sin(t * 0.27) + 6;
+        for (let i = air.length - 1; i >= 0; i--) {
+          const p = air[i];
+          let ax = (wind + Math.sin(t * p.vf * 0.6 + p.flip) * 22 - p.vx) * 1.4;
+          let ay = (p.term - p.vy) * 1.5;
+          if (ptr.active) {
+            const dx = p.x - ptr.x, dy = p.y - ptr.y, d2 = dx * dx + dy * dy;
+            if (d2 < PUSH_R * PUSH_R * 4) {
+              const f = Math.exp(-d2 / (PUSH_R * PUSH_R)), d = Math.sqrt(d2) || 1;
+              ax += (ptr.vx * 3 + (dx / d) * 380) * f;
+              ay += (ptr.vy * 3 + (dy / d) * 380) * f;
+              p.vr += (Math.random() - 0.5) * f * 0.6;
+            }
+          }
+          p.vx += ax * dt; p.vy += ay * dt;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+          p.rot += p.vr * dt; p.flip += p.vf * dt;
+          if (p.x < -30) p.x = w + 30; else if (p.x > w + 30) p.x = -30;
+          if (p.y >= p.gy) {                       // posé au sol
+            p.y = p.gy; p.rest = true; p.restT = t; p.vx = p.vy = 0;
+            rest.push(p); air.splice(i, 1);
+          }
+        }
+        while (air.length < target) air.push(make(w, h));
+
+        // relance des pétales posés par un geste rapide au ras du sol
+        if (ptr.active && speed > 350 && ptr.y > h - 90) {
+          for (let i = rest.length - 1; i >= 0; i--) {
+            const p = rest[i];
+            const dx = p.x - ptr.x;
+            if (Math.abs(dx) < 60 && p.alpha === 1) {
+              p.rest = false; p.vx = ptr.vx * 0.35 + (Math.random() - 0.5) * 80; p.vy = -180 - Math.random() * 220;
+              p.vr = (Math.random() - 0.5) * 6; p.gy = h - 3 - Math.random() * 14;
+              air.push(p); rest.splice(i, 1);
+            }
+          }
+          // on garde le compte en l'air à peu près constant
+          if (air.length > target * 1.8) air.length = Math.round(target * 1.8);
+        }
+
+        // au-delà du maximum, les plus anciens s'effacent
+        const excess = rest.length - MAX_REST;
+        for (let i = 0; i < rest.length; i++) if (i < excess) rest[i].alpha -= dt * 0.8;
+        rest = rest.filter((p) => p.alpha > 0);
+
+        for (const p of rest) draw(ctx, p);
+        for (const p of air) draw(ctx, p);
+      },
+    });
+  });
+</script>

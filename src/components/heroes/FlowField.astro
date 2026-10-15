@@ -1,0 +1,94 @@
+---
+// Champ de flux : des milliers de fils suivent un champ de vecteurs (bruit de Perlin 3D),
+// dégradé lavande → rose. Le curseur crée un tourbillon ; un clic rebat le champ.
+import HeroShell from './HeroShell.astro';
+---
+<HeroShell name="flow"><slot /></HeroShell>
+
+<script>
+  import { runHero, mix, rgba, LAV, PINK } from '../../hero';
+
+  // ───────── CONFIG ─────────
+  const DENSITY = 1 / 650;     // particules par px²
+  const SCALE = 0.0017;        // échelle du bruit
+  const SPEED = 55;            // px/s
+  const FADE = 0.06;           // effacement des traînées par image
+  const SWIRL_R = 170, SWIRL = 260;
+  const BUCKETS = 6;
+
+  // Bruit de Perlin "improved" (Ken Perlin, 2002)
+  const perm = new Uint8Array(512);
+  { const p = Array.from({ length: 256 }, (_, i) => i);
+    for (let i = 255; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [p[i], p[j]] = [p[j], p[i]]; }
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255]; }
+  const fade = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+  const grad = (hh: number, x: number, y: number, z: number) => {
+    const h = hh & 15, u = h < 8 ? x : y, v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+  };
+  function noise(x: number, y: number, z: number) {
+    const X = Math.floor(x) & 255, Y = Math.floor(y) & 255, Z = Math.floor(z) & 255;
+    x -= Math.floor(x); y -= Math.floor(y); z -= Math.floor(z);
+    const u = fade(x), v = fade(y), w = fade(z);
+    const A = perm[X] + Y, AA = perm[A] + Z, AB = perm[A + 1] + Z, B = perm[X + 1] + Y, BA = perm[B] + Z, BB = perm[B + 1] + Z;
+    return lerp(lerp(lerp(grad(perm[AA], x, y, z), grad(perm[BA], x - 1, y, z), u),
+                     lerp(grad(perm[AB], x, y - 1, z), grad(perm[BB], x - 1, y - 1, z), u), v),
+                lerp(lerp(grad(perm[AA + 1], x, y, z - 1), grad(perm[BA + 1], x - 1, y, z - 1), u),
+                     lerp(grad(perm[AB + 1], x, y - 1, z - 1), grad(perm[BB + 1], x - 1, y - 1, z - 1), u), v), w);
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-hero="flow"]').forEach((root) => {
+    type P = { x: number; y: number; age: number; life: number };
+    let ps: P[] = [];
+    let seed = Math.random() * 100;
+    const COLS = Array.from({ length: BUCKETS }, (_, i) => rgba(mix(LAV, PINK, i / (BUCKETS - 1)), 0.7));
+    const spawn = (p: P, w: number, h: number) => { p.x = Math.random() * w; p.y = Math.random() * h; p.age = 0; p.life = 3 + Math.random() * 6; };
+
+    const step = (c: any, t: number, dt: number) => {
+      const { ctx, w, h, ptr } = c;
+      const paths = Array.from({ length: BUCKETS }, () => new Path2D());
+      for (const p of ps) {
+        const a = noise(p.x * SCALE, p.y * SCALE, t * 0.04 + seed) * Math.PI * 4;
+        let vx = Math.cos(a) * SPEED, vy = Math.sin(a) * SPEED;
+        if (ptr.active) {
+          const dx = p.x - ptr.x, dy = p.y - ptr.y, d = Math.hypot(dx, dy) || 1;
+          const f = Math.exp(-(d * d) / (SWIRL_R * SWIRL_R)) * SWIRL;
+          vx += (-dy / d) * f - (dx / d) * f * 0.15; vy += (dx / d) * f - (dy / d) * f * 0.15;
+        }
+        const nx = p.x + vx * dt, ny = p.y + vy * dt;
+        const b = Math.min(BUCKETS - 1, Math.max(0, Math.floor((p.x / w) * BUCKETS)));
+        paths[b].moveTo(p.x, p.y); paths[b].lineTo(nx, ny);
+        p.x = nx; p.y = ny; p.age += dt;
+        if (p.age > p.life || p.x < -5 || p.x > w + 5 || p.y < -5 || p.y > h + 5) spawn(p, w, h);
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < BUCKETS; i++) { ctx.strokeStyle = COLS[i]; ctx.stroke(paths[i]); }
+      ctx.globalCompositeOperation = 'source-over';
+    };
+
+    runHero(root, {
+      init(c) {
+        const n = Math.max(700, Math.min(3200, Math.round(c.w * c.h * DENSITY)));
+        ps = Array.from({ length: n }, () => { const p = { x: 0, y: 0, age: 0, life: 1 }; spawn(p, c.w, c.h); p.age = Math.random() * p.life; return p; });
+        c.ctx.clearRect(0, 0, c.w, c.h);
+      },
+      click() { seed += 2.7; },
+      frame(c, t, dt) {
+        const { ctx, w, h } = c;
+        if (c.reduced) {           // image fixe : on trace les lignes de courant d'un coup
+          ctx.clearRect(0, 0, w, h);
+          for (let i = 0; i < 60; i++) step(c, 0, 1 / 30);
+          return;
+        }
+        // efface vers la transparence (le fond vient du CSS) : pas de voile gris résiduel
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = `rgba(0,0,0,${FADE})`;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalCompositeOperation = 'source-over';
+        step(c, t, dt);
+      },
+    });
+  });
+</script>

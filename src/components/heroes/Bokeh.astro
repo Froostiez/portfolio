@@ -1,0 +1,65 @@
+---
+// Mise au point : des disques de bokeh pastel. La hauteur du curseur règle le plan net ;
+// le titre devient net quand on fait le point en bas de l'écran.
+import HeroShell from './HeroShell.astro';
+---
+<HeroShell name="bokeh"><slot /></HeroShell>
+
+<script>
+  import { runHero, rgba, LAV, PINK } from '../../hero';
+
+  // ───────── CONFIG ─────────
+  const DENSITY = 1 / 20000;   // disques par px²
+  const TITLE_DEPTH = 0.86;    // profondeur du titre (0 haut, 1 bas)
+  const MAX_TITLE_BLUR = 7;    // px
+  const COLORS = [LAV, PINK, [255, 214, 232], [186, 202, 255], [255, 232, 214]];
+
+  document.querySelectorAll<HTMLElement>('[data-hero="bokeh"]').forEach((root) => {
+    type Disc = { x: number; y: number; r: number; z: number; col: number[]; vx: number; vy: number; ph: number };
+    let discs: Disc[] = [];
+    let focus = 0.5, lastBlur = -1;
+
+    runHero(root, {
+      init(c) {
+        const n = Math.max(40, Math.min(110, Math.round(c.w * c.h * DENSITY)));
+        const s = Math.min(c.w, c.h) / 900;
+        discs = Array.from({ length: n }, () => ({
+          x: Math.random() * c.w, y: Math.random() * c.h,
+          r: (14 + Math.random() ** 1.6 * 70) * Math.max(0.6, s),
+          z: Math.random(), col: COLORS[(Math.random() * COLORS.length) | 0],
+          vx: (Math.random() - 0.5) * 14, vy: (Math.random() - 0.5) * 10 - 3, ph: Math.random() * 6.28,
+        }));
+      },
+      click() { focus = Math.random(); },
+      frame(c, t, dt) {
+        const { ctx, w, h, ptr, root } = c;
+        ctx.clearRect(0, 0, w, h);
+        const target = ptr.active ? ptr.y / h : 0.5 + 0.38 * Math.sin(t * 0.17);
+        focus = c.reduced ? TITLE_DEPTH : focus + (target - focus) * Math.min(1, dt * 4);
+
+        const blur = Math.min(MAX_TITLE_BLUR, Math.abs(focus - TITLE_DEPTH) * 16);
+        if (Math.abs(blur - lastBlur) > 0.05) { root.style.setProperty('--title-blur', blur.toFixed(2) + 'px'); lastBlur = blur; }
+
+        ctx.globalCompositeOperation = 'lighter';
+        for (const d of discs) {
+          d.x += d.vx * dt; d.y += d.vy * dt;
+          const m = d.r * 1.6;
+          if (d.x < -m) d.x = w + m; else if (d.x > w + m) d.x = -m;
+          if (d.y < -m) d.y = h + m; else if (d.y > h + m) d.y = -m;
+          const b = Math.min(1, Math.abs(d.z - focus) * 1.6);         // 0 net, 1 très flou
+          const R = d.r * (1 + b * 0.7);
+          const a = (0.5 - b * 0.28) * (0.85 + 0.15 * Math.sin(t * 0.8 + d.ph));
+          const e = 0.05 + b * 0.85;                                   // douceur du bord
+          const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, R);
+          g.addColorStop(0, rgba(d.col, a * 0.42));
+          g.addColorStop(Math.max(0, (1 - e) * 0.86), rgba(d.col, a * 0.5));
+          g.addColorStop(Math.max(0.001, 1 - e), rgba(d.col, a * (1 - 0.55 * b)));
+          g.addColorStop(1, rgba(d.col, 0));
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(d.x, d.y, R, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+      },
+    });
+  });
+</script>

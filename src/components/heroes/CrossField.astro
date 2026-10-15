@@ -1,0 +1,73 @@
+---
+// Champ de croix : une grille de "×" qui pivotent en "+" et rosissent autour du curseur. Clic = onde.
+import HeroShell from './HeroShell.astro';
+---
+<HeroShell name="cross"><slot /></HeroShell>
+
+<script>
+  import { runHero, mix, rgba, LAV, PINK } from '../../hero';
+
+  // ───────── CONFIG ─────────
+  const GAP = 28;            // pas de la grille (px), 22 sur mobile
+  const RADIUS = 0.17;       // rayon d'influence, part de la plus petite dimension
+  const RISE = 14, FALL = 2.6; // vitesse d'apparition / de retour (traînée)
+  const WAVE_SPEED = 700;    // px/s
+  const WAVE_LIFE = 2;       // s
+  const BUCKETS = 10;        // niveaux de couleur (regroupe les traits pour la perf)
+
+  document.querySelectorAll<HTMLElement>('[data-hero="cross"]').forEach((root) => {
+    let cells: { x: number; y: number; f: number }[] = [];
+    let gap = GAP;
+    const waves: { x: number; y: number; t0: number }[] = [];
+
+    runHero(root, {
+      init(c) {
+        gap = c.w < 700 ? 22 : GAP;
+        cells = [];
+        const cols = Math.ceil(c.w / gap) + 1, rows = Math.ceil(c.h / gap) + 1;
+        const ox = (c.w - (cols - 1) * gap) / 2, oy = (c.h - (rows - 1) * gap) / 2;
+        for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) cells.push({ x: ox + i * gap, y: oy + j * gap, f: 0 });
+      },
+      click(_c, x, y, t) { waves.push({ x, y, t0: t }); },
+      frame(c, t, dt) {
+        const { ctx, w, h, ptr } = c;
+        ctx.clearRect(0, 0, w, h);
+        const R = Math.min(w, h) * RADIUS, R2 = R * R;
+        // sans curseur : un point fantôme se promène pour garder la grille vivante
+        const auto = !ptr.active;
+        const px = auto ? w * (0.5 + 0.33 * Math.sin(t * 0.21)) : ptr.x;
+        const py = auto ? h * (0.45 + 0.27 * Math.sin(t * 0.29 + 1)) : ptr.y;
+        const strength = auto ? 0.55 : 1;
+        for (let k = waves.length - 1; k >= 0; k--) if (t - waves[k].t0 > WAVE_LIFE) waves.splice(k, 1);
+
+        const paths = Array.from({ length: BUCKETS }, () => new Path2D());
+        for (const cell of cells) {
+          const dx = cell.x - px, dy = cell.y - py;
+          let target = strength * Math.exp(-(dx * dx + dy * dy) / R2);
+          for (const wv of waves) {
+            const a = t - wv.t0, r = a * WAVE_SPEED;
+            const dd = Math.hypot(cell.x - wv.x, cell.y - wv.y) - r;
+            target += (1 - a / WAVE_LIFE) * Math.exp(-(dd * dd) / 1800);
+          }
+          target = Math.min(1, target);
+          if (c.reduced) cell.f = target;
+          else cell.f += (target - cell.f) * Math.min(1, dt * (target > cell.f ? RISE : FALL));
+          const f = cell.f;
+          const ang = (Math.PI / 4) * (1 - f);           // 45° = ×, 0° = +
+          const L = gap * (0.15 + 0.15 * f);
+          const cx = Math.cos(ang) * L, cy = Math.sin(ang) * L;
+          const p = paths[Math.min(BUCKETS - 1, Math.floor(f * BUCKETS))];
+          p.moveTo(cell.x - cx, cell.y - cy); p.lineTo(cell.x + cx, cell.y + cy);
+          p.moveTo(cell.x + cy, cell.y - cx); p.lineTo(cell.x - cy, cell.y + cx);
+        }
+        ctx.lineCap = 'round';
+        for (let b = 0; b < BUCKETS; b++) {
+          const k = b / (BUCKETS - 1);
+          ctx.strokeStyle = rgba(mix(LAV, PINK, k), 0.22 + 0.78 * k);
+          ctx.lineWidth = 1.4 + 1.2 * k;
+          ctx.stroke(paths[b]);
+        }
+      },
+    });
+  });
+</script>
