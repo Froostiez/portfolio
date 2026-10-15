@@ -16,6 +16,13 @@ export const experiments: Experiment[] = [
     tags: ['canvas', 'interaction', 'ia-images'],
   },
   {
+    slug: 'foret',
+    title: 'Forêt',
+    date: '2026-10',
+    description: 'Brush reveal sur deux images alignées : une forêt morte et ses ruines, et la même forêt vivante, en fleurs et baignée de lumière. Le curseur ramène la vie.',
+    tags: ['canvas', 'interaction', 'ia-images'],
+  },
+  {
     slug: 'champ-de-croix',
     title: 'Champ de croix',
     date: '2026-10',

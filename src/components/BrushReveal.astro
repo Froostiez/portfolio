@@ -1,22 +1,28 @@
 ---
 // Hero interactif : le curseur "perce" l'image BASE (sable noir) et révèle l'image REVEAL (prairie).
 // Réglages dans la section CONFIG du script ci-dessous.
+// Props optionnelles : autres images (chemins dans public/, sans base) et texte d'invite.
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const {
+  baseLg = '/images/base-2400.webp', baseSm = '/images/base-1280.webp',
+  revealLg = '/images/reveal-2400.webp', revealSm = '/images/reveal-1280.webp',
+  label = 'Move to reveal',
+} = Astro.props;
 ---
 <section
   class="hero"
   data-brush-reveal
-  data-base-lg={`${base}/images/base-2400.webp`}
-  data-base-sm={`${base}/images/base-1280.webp`}
-  data-reveal-lg={`${base}/images/reveal-2400.webp`}
-  data-reveal-sm={`${base}/images/reveal-1280.webp`}
+  data-base-lg={base + baseLg}
+  data-base-sm={base + baseSm}
+  data-reveal-lg={base + revealLg}
+  data-reveal-sm={base + revealSm}
 >
   <canvas class="layer reveal" aria-hidden="true"></canvas>
   <canvas class="layer top" aria-hidden="true"></canvas>
   <div class="scrim top-scrim"></div>
   <div class="scrim bottom-scrim"></div>
   <div class="content"><slot /></div>
-  <div class="idle-label" aria-hidden="true">Move to reveal</div>
+  <div class="idle-label" aria-hidden="true">{label}</div>
   <div class="ring" aria-hidden="true"></div>
 </section>
 

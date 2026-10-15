@@ -1,0 +1,10 @@
+---
+// Forêt : brush reveal où le curseur ramène la vie dans une forêt morte (images générées avec Gemini).
+import BrushReveal from '../BrushReveal.astro';
+const I = '/images/lab/';
+---
+<BrushReveal
+  baseLg={I + 'foret-base-2400.webp'} baseSm={I + 'foret-base-1280.webp'}
+  revealLg={I + 'foret-reveal-2400.webp'} revealSm={I + 'foret-reveal-1280.webp'}
+  label="Bring it back to life"
+><slot /></BrushReveal>
