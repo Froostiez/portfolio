@@ -2,18 +2,21 @@
 import Base from '../../layouts/Base.astro';
 import { experiments } from '../../content/experiments';
 import { url } from '../../utils';
+const tagEn: Record<string, string> = { 'génératif': 'generative', physique: 'physics', 'ia-images': 'ai-images' };
 ---
-<Base title="Lab · Ferdinand Lacroix">
+<Base title="Lab · Ferdinand Lacroix" bilingual>
   <main class="page">
     <h1>Lab</h1>
-    <p class="lead">Un peu fourre-tout : des idées, des assets et des tests qui n’ont pas (encore) de projet.</p>
+    <p class="lead" data-l="fr">Un peu fourre-tout : des idées, des assets et des tests qui n’ont pas (encore) de projet.</p>
+    <p class="lead" data-l="en">A bit of a catch-all: ideas, assets and tests that don’t have a project (yet).</p>
     <div class="grid">
       {experiments.map((e) => (
         <a class="card" href={url(`/lab/${e.slug}`)}>
           <div class="meta">{e.date}</div>
-          <h3>{e.title}</h3>
-          <p>{e.description}</p>
-          <div class="tags">{e.tags.map((t) => <span class="tag">{t}</span>)}</div>
+          <h3><span data-l="fr">{e.title}</span><span data-l="en">{e.titleEn}</span></h3>
+          <p data-l="fr">{e.description}</p>
+          <p data-l="en">{e.descriptionEn}</p>
+          <div class="tags">{e.tags.map((t) => tagEn[t] ? <span class="tag"><span data-l="fr">{t}</span><span data-l="en">{tagEn[t]}</span></span> : <span class="tag">{t}</span>)}</div>
         </a>
       ))}
     </div>

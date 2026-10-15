@@ -31,12 +31,12 @@ const demos: Record<string, any> = {
 const { experiment } = Astro.props;
 const Demo = demos[experiment.slug];
 ---
-<Base title={`${experiment.title} · Lab`} hero>
+<Base title={`${experiment.title} · Lab`} hero bilingual>
   <Demo>
     <HeroCopy />
     <div class="lab-bar">
-      <a class="pill glass" href={url('/lab')}>← Back to the lab</a>
-      <span class="meta">{experiment.title}</span>
+      <a class="pill glass" href={url('/lab')}><span data-l="fr">← Retour au lab</span><span data-l="en">← Back to the lab</span></a>
+      <span class="meta"><span data-l="fr">{experiment.title}</span><span data-l="en">{experiment.titleEn}</span></span>
     </div>
   </Demo>
 </Base>

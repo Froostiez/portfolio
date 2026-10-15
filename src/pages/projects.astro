@@ -5,9 +5,10 @@ import { projects } from '../content/projects';
 import { url } from '../utils';
 
 const badge = { web: 'Web', android: 'Android', pro: 'Projet pro', lab: 'Lab' } as const;
+const badgeEn = { web: 'Web', android: 'Android', pro: 'Pro project', lab: 'Lab' } as const;
 const isExternal = (l?: string) => !!l && /^https?:/.test(l);
 ---
-<Base title="Projects · Ferdinand Lacroix">
+<Base title="Projects · Ferdinand Lacroix" bilingual>
   <Fragment slot="head">
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,7 +17,8 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
   </Fragment>
   <main class="page">
     <h1>Projects</h1>
-    <p class="lead">Une sélection de ce que j’ai construit.</p>
+    <p class="lead" data-l="fr">Une sélection de ce que j’ai construit.</p>
+    <p class="lead" data-l="en">A selection of things I’ve built.</p>
     <div class="grid">
       {projects.map((p) => {
         const Tag = p.link ? 'a' : 'div';
@@ -39,20 +41,25 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
               ) : (
                 <div class="logo placeholder" aria-hidden="true">{p.title[0]}</div>
               )}
-              <span class="badge">{badge[p.kind]}</span>
+              <span class="badge"><span data-l="fr">{badge[p.kind]}</span><span data-l="en">{badgeEn[p.kind]}</span></span>
             </div>
             <div class="meta">{p.year}</div>
             <h3 class:list={[p.titleStyle && `t-${p.titleStyle}`]}>{p.titleImage ? <img class="title-img" src={url(p.titleImage)} alt={p.title} height="22" /> : p.titleStyle === 'miette' ? <>{p.title}<span class="dot">.</span></> : p.title}</h3>
-            <p>{p.description}</p>
+            <p data-l="fr">{p.description}</p>
+            <p data-l="en">{p.descriptionEn}</p>
             <div class="tags">{p.stack.map((s) => <span class="tag">{s}</span>)}</div>
             {p.video && (
-              <button class="demo" type="button" data-video={url(p.video)} data-poster={p.videoPoster ? url(p.videoPoster) : undefined} aria-label={`Voir la démo de ${p.title}`}>
-                {p.videoPoster && <img src={url(p.videoPoster)} alt="" loading="lazy" />}
+              <button class="demo" type="button"
+                data-video={url(p.video)} data-video-fr={url(p.videoFr ?? p.video)}
+                data-poster={p.videoPoster && url(p.videoPoster)} data-poster-fr={(p.videoPosterFr ?? p.videoPoster) && url((p.videoPosterFr ?? p.videoPoster)!)}
+                aria-label={`Démo / demo: ${p.title}`}>
+                {p.videoPoster && <img data-l="en" src={url(p.videoPoster)} alt="" loading="lazy" />}
+                {(p.videoPosterFr ?? p.videoPoster) && <img data-l="fr" src={url((p.videoPosterFr ?? p.videoPoster)!)} alt="" loading="lazy" />}
                 <span class="play" aria-hidden="true"></span>
-                <span class="demo-label">Voir la démo</span>
+                <span class="demo-label"><span data-l="fr">Voir la démo</span><span data-l="en">Watch the demo</span></span>
               </button>
             )}
-            {p.link && <span class="go">{p.linkLabel ?? 'Visiter'} →</span>}
+            {p.link && <span class="go"><span data-l="fr">{p.linkLabel ?? 'Visiter'}</span><span data-l="en">{p.linkLabelEn ?? 'Visit'}</span> →</span>}
           </Tag>
         );
       })}
@@ -72,8 +79,9 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
     b.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      video.poster = b.dataset.poster ?? '';
-      video.src = b.dataset.video!;
+      const fr = document.documentElement.dataset.lang !== 'en';
+      video.poster = (fr ? b.dataset.posterFr : b.dataset.poster) ?? '';
+      video.src = (fr ? b.dataset.videoFr : b.dataset.video)!;
       dialog.showModal();
       video.play().catch(() => {});
     })
