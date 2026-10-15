@@ -16,6 +16,7 @@ const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire dâ€
     <link rel="icon" href={url('/favicon.ico')} sizes="any" />
     <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
     <meta name="theme-color" content="#0f0e14" />
+    <slot name="head" />
     {bilingual && (
       <script is:inline>
         (function () {

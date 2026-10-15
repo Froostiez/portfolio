@@ -14,6 +14,7 @@ export interface Project {
   cardBack?: { fond: string; primaire: string; or: string };      // mini dos de carte dans le coin
   cardBackAlt?: { fond: string; primaire: string; or: string };   // palette au survol
   titleImage?: string;      // remplace le titre texte par une image (wordmark)
+  titleStyle?: 'vegamon' | 'mysteria' | 'fire' | 'miette'; // police et couleur du site du projet (voir projects.astro)
   video?: string;           // vidéo de démo (mp4), ouverte dans un lecteur plein écran
   videoPoster?: string;     // vignette affichée dans la carte
   link?: string;            // URL externe ou chemin interne (/lab/...)
@@ -26,6 +27,7 @@ const P = '/images/projects/';
 export const projects: Project[] = [
   {
     title: 'Vegamon',
+    titleStyle: 'vegamon',
     year: '2026',
     kind: 'web',
     description: 'Jeu d’ouverture de boosters de cartes personnalisées au thème Vegas : comptes joueurs, booster quotidien, collection « Végadex » sur une table de roulette, booster en 3D. De nouvelles extensions s’ajoutent sans écrire de code.',
@@ -40,6 +42,7 @@ export const projects: Project[] = [
   },
   {
     title: 'Mysteria',
+    titleStyle: 'mysteria',
     year: '2026',
     kind: 'web',
     description: 'Sanctuaire d’énigmes en ligne : filtres par catégorie et difficulté, réponses vérifiées sans tenir compte des accents ni de la casse, indices, top 3 présenté en cartes à jouer et formulaire de proposition d’énigmes.',
@@ -61,6 +64,7 @@ export const projects: Project[] = [
   },
   {
     title: 'FIRE!',
+    titleStyle: 'fire',
     year: '2026',
     kind: 'web',
     description: 'Jeu de réflexion au tour par tour : brûler tous les arbres malades en un minimum de tours. 10 niveaux de tutoriel, mode sans fin et solveur Monte Carlo Tree Search. Projet d’équipe à Télécom SudParis, en version Java/JavaFX et en version web.',
@@ -70,6 +74,7 @@ export const projects: Project[] = [
   },
   {
     title: 'Miette',
+    titleStyle: 'miette',
     year: '2026',
     kind: 'android',
     description: 'Application mobile de suivi alimentaire : recherche dans la table CIQUAL, scan de codes-barres, placard, recettes, export CSV et sauvegarde.',
