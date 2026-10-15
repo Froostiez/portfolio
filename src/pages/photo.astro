@@ -19,7 +19,7 @@ const P = '/images/photo/';
     {photos.length > 0 ? (
       <div class="mosaic">
         {photos.map((ph, i) => (
-          <button class="shot" type="button" data-i={i} aria-label={ph.alt.fr}>
+          <button class="shot" type="button" data-i={i} data-ratio={ph.h / ph.w} aria-label={ph.alt.fr}>
             <img
               src={url(P + ph.file + '-thumb.webp')}
               width={800} height={Math.round((800 * ph.h) / ph.w)}
@@ -70,6 +70,28 @@ const P = '/images/photo/';
     if (e.key === 'ArrowLeft') show(cur - 1);
     if (e.key === 'ArrowRight') show(cur + 1);
   });
+  // Mosaïque dans l'ordre de lecture : chaque photo va dans la colonne la plus courte
+  // (sans JS, les colonnes CSS prennent le relais, rangées de haut en bas).
+  const mosaic = document.querySelector('.mosaic');
+  if (mosaic) {
+    const shots = [...mosaic.querySelectorAll('.shot')];
+    let lastCols = 0;
+    const layout = () => {
+      const n = Math.max(1, Math.min(3, Math.floor(mosaic.clientWidth / 300)));
+      if (n === lastCols) return;
+      lastCols = n;
+      mosaic.classList.add('js');
+      mosaic.replaceChildren();
+      const cols = Array.from({ length: n }, () => { const c = document.createElement('div'); c.className = 'col'; mosaic.appendChild(c); return { el: c, h: 0 }; });
+      for (const s of shots) {
+        const c = cols.reduce((a, b) => (b.h < a.h - 0.01 ? b : a));
+        c.el.appendChild(s);
+        c.h += +s.dataset.ratio + 0.04;
+      }
+    };
+    layout();
+    new ResizeObserver(layout).observe(mosaic);
+  }
   // swipe mobile
   let x0 = null;
   dlg.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
@@ -84,6 +106,8 @@ const P = '/images/photo/';
 <style>
   .photo-page { max-width: 1200px; }
   .mosaic { columns: 3 300px; column-gap: 12px; margin-top: 40px; }
+  .mosaic.js { columns: auto; display: flex; gap: 12px; align-items: flex-start; }
+  .mosaic.js :global(.col) { flex: 1; min-width: 0; }
   .shot { display: block; width: 100%; padding: 0; margin: 0 0 12px; border: 0; background: var(--bg-2); border-radius: 10px; overflow: hidden; cursor: zoom-in; break-inside: avoid; }
   .shot img { display: block; width: 100%; height: auto; transition: transform .5s ease, opacity .3s ease; }
   .shot:hover img { transform: scale(1.03); }

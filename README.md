@@ -57,10 +57,10 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 
 ## Photo
 
-- Page `/photo` (bilingue) : mosaïque en colonnes qui garde les formats d'origine, visionneuse plein écran (flèches, clavier, swipe), bouton Instagram `@panoramiqe`.
+- Page `/photo` (bilingue) : mosaïque qui garde les formats d'origine, remplie dans l'ordre de lecture (JS : chaque photo va dans la colonne la plus courte ; colonnes CSS sans JS), visionneuse plein écran (flèches, clavier, swipe), bouton Instagram `@panoramiqe`.
 - Liste dans `src/content/photos.ts` (`file`, `w`, `h`, `alt` FR/EN, `place` optionnel). L'ordre du tableau = l'ordre d'affichage.
 - Fichiers dans `public/images/photo/` : `<file>.webp` (2000 px max) + `<file>-thumb.webp` (800 px).
-- Originaux à déposer dans `photos-src/` (ignoré par git) : Claude les convertit et remplit `photos.ts`.
+- Originaux à déposer dans `photos-src/` (ignoré par git) : Claude les convertit (EXIF et GPS retirés) et remplit `photos.ts`. 36 photos en ligne (doublons écartés : `thumb_4e9`, `_MG_6153`, `thumb_323~2`).
 
 ## CV
 
@@ -78,6 +78,5 @@ Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de télé
 - Miette : vidéo de démo ajoutée ; description plus précise si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).
-- Photo : déposer les originaux dans `photos-src/`.
 - Bilingue : il ne reste que l'accueil si voulu.
 - Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.
