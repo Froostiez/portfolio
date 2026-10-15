@@ -39,13 +39,43 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
             <h3>{p.titleImage ? <img class="title-img" src={url(p.titleImage)} alt={p.title} height="22" /> : p.title}</h3>
             <p>{p.description}</p>
             <div class="tags">{p.stack.map((s) => <span class="tag">{s}</span>)}</div>
+            {p.video && (
+              <button class="demo" type="button" data-video={url(p.video)} data-poster={p.videoPoster ? url(p.videoPoster) : undefined} aria-label={`Voir la démo de ${p.title}`}>
+                {p.videoPoster && <img src={url(p.videoPoster)} alt="" loading="lazy" />}
+                <span class="play" aria-hidden="true"></span>
+                <span class="demo-label">Voir la démo</span>
+              </button>
+            )}
             {p.link && <span class="go">{p.linkLabel ?? 'Visiter'} →</span>}
           </Tag>
         );
       })}
     </div>
   </main>
+  <dialog class="player" aria-label="Démo vidéo">
+    <button class="close" type="button" aria-label="Fermer">×</button>
+    <video controls playsinline preload="none"></video>
+  </dialog>
 </Base>
+
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>('dialog.player')!;
+  const video = dialog.querySelector('video')!;
+  const close = () => dialog.close();
+  document.querySelectorAll<HTMLButtonElement>('.demo').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      video.poster = b.dataset.poster ?? '';
+      video.src = b.dataset.video!;
+      dialog.showModal();
+      video.play().catch(() => {});
+    })
+  );
+  dialog.querySelector('.close')!.addEventListener('click', close);
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) close(); });
+  dialog.addEventListener('close', () => { video.pause(); video.removeAttribute('src'); video.load(); });
+</script>
 
 <style>
   .project { display: flex; flex-direction: column; position: relative; overflow: hidden; }
@@ -70,4 +100,25 @@ const isExternal = (l?: string) => !!l && /^https?:/.test(l);
   .badge { align-self: flex-start; font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
   .go { margin-top: auto; padding-top: 16px; font-size: .9rem; color: var(--accent); }
   .project .tags { margin-bottom: 0; }
+  .demo {
+    position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; margin-top: 16px; padding: 0;
+    border: 1px solid var(--line); border-radius: 12px; overflow: hidden; cursor: pointer; background: var(--bg);
+  }
+  .demo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+  .demo:hover img { transform: scale(1.04); }
+  .demo .play {
+    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; transform: translate(-50%, -50%);
+    border-radius: 50%; background: rgba(15,14,20,.75); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: transform .2s ease;
+  }
+  .demo .play::after { content: ''; position: absolute; left: 21px; top: 16px; border-style: solid; border-width: 10px 0 10px 16px; border-color: transparent transparent transparent #fff; }
+  .demo:hover .play { transform: translate(-50%, -50%) scale(1.08); }
+  .demo-label { position: absolute; left: 10px; bottom: 8px; font-size: .75rem; font-weight: 600; color: #fff; background: rgba(15,14,20,.7); padding: 2px 8px; border-radius: 999px; }
+  .player { padding: 0; border: none; background: transparent; width: min(92vw, 1100px); max-width: none; overflow: visible; }
+  .player::backdrop { background: rgba(5,5,8,.85); }
+  .player video { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; background: #000; }
+  .player .close {
+    position: absolute; right: -6px; top: -44px; width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--bg-2); color: #fff; font-size: 1.3rem; line-height: 1; cursor: pointer;
+  }
 </style>

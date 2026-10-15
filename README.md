@@ -31,11 +31,12 @@ Champs : `title, year, kind (web|android|pro|lab), description, stack, link, lin
 
 - `logo` : image du logo. Avec `logoBack`, le logo devient la pièce 3D (face + dos).
 - `watermark` : grand visuel discret, coin haut droit, coupé par le bord (Mysteria : logo runique, RacketLab : `loupe-dark.svg`).
+- `video` / `videoPoster` : vidéo de démo (mp4 1080p d'origine, non recompressé) avec vignette cliquable dans la carte, ouverte dans un lecteur `<dialog>` (Miette : `miette-demo.mp4`).
 - `titleImage` : remplace le titre texte par un wordmark (RacketLab : `logo-wordmark-dark.svg`, texte seul rogné à partir du logo horizontal).
 - `background` / `backgroundAlt` : fond de carte, fondu enchaîné vers l'alt au survol (Vegamon : `card-bg-gold.webp` puis `card-bg-neon.webp`). Affichés à la largeur de la carte ; le gold est rogné sur les traits du cadre pour s'aligner avec les bords.
 - `cardBack` / `cardBackAlt` : dos de carte Vegamon dessiné en CSS (treillis, cadre, losange, "V") en filigrane coin haut droit ; palette alt au survol. Couleurs fond/treillis réelles de VGS1 et VGS2 ; les couleurs "or" (`#E0B84F`, `#7FD8FF`) sont des estimations, à remplacer par la couleur de tranche All-in de chaque série.
 
-Projets actuels : Vegamon, Mysteria, RacketLab, FIRE!, Miette (Android, sans lien), Choipo (projet pro, logo seul), Hero reveal (lab).
+Projets actuels : Vegamon, Mysteria, RacketLab, FIRE!, Miette (Android, sans lien, vidéo de démo), Choipo (projet pro, logo seul), Hero reveal (lab).
 Liens : vegamon.vercel.app, mysteria-gamma.vercel.app, racketlab-two.vercel.app, fire-vert-pi.vercel.app (URL publique, l'ancienne preview était protégée par Vercel).
 
 ## Images
@@ -62,7 +63,7 @@ Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de télé
 ## À faire
 
 - Lab : ajouter d'autres expériences (un second hero est prévu).
-- Miette : ajouter une description plus précise ou des captures si besoin (le code peut être fourni).
+- Miette : vidéo de démo ajoutée ; description plus précise si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).
 - Bilingue : étendre aux pages Accueil, Projects et Lab si voulu.

@@ -14,6 +14,8 @@ export interface Project {
   cardBack?: { fond: string; primaire: string; or: string };      // mini dos de carte dans le coin
   cardBackAlt?: { fond: string; primaire: string; or: string };   // palette au survol
   titleImage?: string;      // remplace le titre texte par une image (wordmark)
+  video?: string;           // vidéo de démo (mp4), ouverte dans un lecteur plein écran
+  videoPoster?: string;     // vignette affichée dans la carte
   link?: string;            // URL externe ou chemin interne (/lab/...)
   linkLabel?: string;
 }
@@ -73,6 +75,8 @@ export const projects: Project[] = [
     description: 'Application mobile de suivi alimentaire : recherche dans la table CIQUAL, scan de codes-barres, placard, recettes, export CSV et sauvegarde.',
     stack: ['React Native', 'Expo', 'TypeScript', 'SQLite'],
     logo: P + 'miette/miette.webp',
+    video: P + 'miette/miette-demo.mp4',
+    videoPoster: P + 'miette/miette-demo-poster.webp',
   },
   {
     title: 'Choipo',
