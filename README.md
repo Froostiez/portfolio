@@ -16,7 +16,7 @@ Workflow voulu : Claude modifie les fichiers directement dans ce dossier (pas de
 
 ## Structure
 
-- `src/pages/` : `index` (hero), `projects`, `about`, `contact`, `lab/index`, `lab/[slug]`.
+- `src/pages/` : `index` (hero), `projects`, `photo`, `about`, `contact`, `lab/index`, `lab/[slug]`.
 - `src/layouts/Base.astro`, `src/components/Nav.astro` : cadre commun et navigation.
 - `src/components/BrushReveal.astro` : hero. Image sombre (sable noir) recouvrant un canvas qui révèle la prairie de fleurs sous le curseur (blobs procéduraux Catmull-Rom, traînée qui rétrécit, blob au repos "Move to reveal", `prefers-reduced-motion` géré).
 - `src/components/Coin.astro` : pièce 3D three.js (Vegamon). Tranche cannelée dégradé bleu/cuivre, bump map, supersampling, repli image plate sans WebGL, statique en reduced-motion, rotation au survol/drag.
@@ -48,7 +48,14 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 
 - Activé page par page : `<Base ... bilingual>`. Ça affiche le bouton FR/EN dans la nav et choisit la langue (choix mémorisé dans `localStorage`, sinon langue du navigateur).
 - Dans la page, doubler chaque texte : `<span data-l="fr">…</span><span data-l="en">…</span>` (marche aussi sur `p`, `a`, etc.). La règle CSS est dans `global.css`.
-- Pages bilingues : `about`, `contact`. Les autres sont encore en français seul.
+- Pages bilingues : `about`, `contact`, `photo`. Les autres sont encore en français seul.
+
+## Photo
+
+- Page `/photo` (bilingue) : mosaïque en colonnes qui garde les formats d'origine, visionneuse plein écran (flèches, clavier, swipe), bouton Instagram `@panoramiqe`.
+- Liste dans `src/content/photos.ts` (`file`, `w`, `h`, `alt` FR/EN, `place` optionnel). L'ordre du tableau = l'ordre d'affichage.
+- Fichiers dans `public/images/photo/` : `<file>.webp` (2000 px max) + `<file>-thumb.webp` (800 px).
+- Originaux à déposer dans `photos-src/` (ignoré par git) : Claude les convertit et remplit `photos.ts`.
 
 ## CV
 
@@ -66,5 +73,6 @@ Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de télé
 - Miette : vidéo de démo ajoutée ; description plus précise si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).
+- Photo : déposer les originaux dans `photos-src/`.
 - Bilingue : étendre aux pages Accueil, Projects et Lab si voulu.
 - Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.

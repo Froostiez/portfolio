@@ -1,0 +1,105 @@
+---
+import Base from '../layouts/Base.astro';
+import { photos, instagram } from '../content/photos';
+import { url } from '../utils';
+const P = '/images/photo/';
+---
+<Base title="Photo · Ferdinand Lacroix" bilingual>
+  <main class="page photo-page">
+    <h1>Photo</h1>
+    <p class="lead" data-l="fr">Une sélection de mes photos préférées. Vice-président de Déclic, le club photo de Télécom SudParis, je retouche sous Lightroom.</p>
+    <p class="lead" data-l="en">A selection of my favourite shots. I’m vice-president of Déclic, the Télécom SudParis photography club, and I edit in Lightroom.</p>
+    <div class="btn-row">
+      <a class="pill solid" href={instagram} target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
+        @panoramiqe
+      </a>
+    </div>
+
+    {photos.length > 0 ? (
+      <div class="mosaic">
+        {photos.map((ph, i) => (
+          <button class="shot" type="button" data-i={i} aria-label={ph.alt.fr}>
+            <img
+              src={url(P + ph.file + '-thumb.webp')}
+              width={800} height={Math.round((800 * ph.h) / ph.w)}
+              alt={ph.alt.fr} loading={i < 6 ? 'eager' : 'lazy'} decoding="async"
+            />
+          </button>
+        ))}
+      </div>
+    ) : (
+      <p class="empty"><span data-l="fr">Galerie en préparation.</span><span data-l="en">Gallery coming soon.</span></p>
+    )}
+  </main>
+
+  <dialog class="viewer" aria-label="Photo">
+    <button class="nav-btn close" type="button" aria-label="Fermer">×</button>
+    <button class="nav-btn prev" type="button" aria-label="Précédente">‹</button>
+    <figure>
+      <img alt="" />
+      <figcaption></figcaption>
+    </figure>
+    <button class="nav-btn next" type="button" aria-label="Suivante">›</button>
+  </dialog>
+</Base>
+
+<script define:vars={{ list: photos.map((p) => ({ src: url(P + p.file + '.webp'), alt: p.alt, place: p.place ?? '' })) }}>
+  const dlg = document.querySelector('dialog.viewer');
+  const img = dlg.querySelector('img');
+  const cap = dlg.querySelector('figcaption');
+  let cur = 0;
+  const lang = () => (document.documentElement.dataset.lang === 'en' ? 'en' : 'fr');
+  const show = (i) => {
+    cur = (i + list.length) % list.length;
+    const p = list[cur];
+    img.src = p.src;
+    img.alt = p.alt[lang()];
+    cap.textContent = p.place;
+    // précharge la suivante
+    if (list.length > 1) new Image().src = list[(cur + 1) % list.length].src;
+  };
+  document.querySelectorAll('.shot').forEach((b) =>
+    b.addEventListener('click', () => { show(+b.dataset.i); dlg.showModal(); })
+  );
+  dlg.querySelector('.close').addEventListener('click', () => dlg.close());
+  dlg.querySelector('.prev').addEventListener('click', () => show(cur - 1));
+  dlg.querySelector('.next').addEventListener('click', () => show(cur + 1));
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') show(cur - 1);
+    if (e.key === 'ArrowRight') show(cur + 1);
+  });
+  // swipe mobile
+  let x0 = null;
+  dlg.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  dlg.addEventListener('touchend', (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1));
+    x0 = null;
+  });
+</script>
+
+<style>
+  .photo-page { max-width: 1200px; }
+  .mosaic { columns: 3 300px; column-gap: 12px; margin-top: 40px; }
+  .shot { display: block; width: 100%; padding: 0; margin: 0 0 12px; border: 0; background: var(--bg-2); border-radius: 10px; overflow: hidden; cursor: zoom-in; break-inside: avoid; }
+  .shot img { display: block; width: 100%; height: auto; transition: transform .5s ease, opacity .3s ease; }
+  .shot:hover img { transform: scale(1.03); }
+  .empty { color: var(--muted); margin-top: 40px; }
+
+  .viewer { padding: 0; border: 0; background: transparent; max-width: none; max-height: none; width: 100vw; height: 100vh; overflow: hidden; }
+  .viewer[open] { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; }
+  .viewer::backdrop { background: rgba(5,5,8,.97); }
+  .viewer figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; }
+  .viewer img { max-width: 100%; max-height: calc(100vh - 90px); object-fit: contain; border-radius: 6px; }
+  .viewer figcaption { color: var(--muted); font-size: .85rem; min-height: 1.2em; }
+  .nav-btn { width: 44px; height: 44px; justify-self: center; border-radius: 50%; border: 1px solid var(--line); background: rgba(24,23,34,.8); color: #fff; font-size: 1.6rem; line-height: 1; cursor: pointer; }
+  .nav-btn:hover { border-color: rgba(255,255,255,.4); }
+  .close { position: fixed; right: 18px; top: 18px; font-size: 1.3rem; z-index: 1; }
+  @media (max-width: 640px) {
+    .viewer[open] { grid-template-columns: 0 1fr 0; }
+    .prev, .next { display: none; }
+  }
+</style>
