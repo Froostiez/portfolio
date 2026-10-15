@@ -6,6 +6,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 const {
   baseLg = '/images/base-2400.webp', baseSm = '/images/base-1280.webp',
   revealLg = '/images/reveal-2400.webp', revealSm = '/images/reveal-1280.webp',
+  baseXl, revealXl,          // optionnel : pleine résolution, pour téléphones en portrait et grands écrans HiDPI
   label = 'Move to reveal',
 } = Astro.props;
 ---
@@ -16,6 +17,8 @@ const {
   data-base-sm={base + baseSm}
   data-reveal-lg={base + revealLg}
   data-reveal-sm={base + revealSm}
+  data-base-xl={baseXl && base + baseXl}
+  data-reveal-xl={revealXl && base + revealXl}
 >
   <canvas class="layer reveal" aria-hidden="true"></canvas>
   <canvas class="layer top" aria-hidden="true"></canvas>
@@ -84,7 +87,6 @@ const {
     const maskCtx = mask.getContext('2d')!;
 
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const small = innerWidth * Math.min(devicePixelRatio || 1, 2) < 1500;
     const load = (src: string) =>
       new Promise<HTMLImageElement>((res, rej) => {
         const im = new Image();
@@ -114,6 +116,8 @@ const {
       mask.width = Math.max(1, Math.round(W * MASK_SCALE));
       mask.height = Math.max(1, Math.round(H * MASK_SCALE));
       if (!baseImg || !revealImg || r.width < 1 || r.height < 1) { ready = false; return; }
+      revealCtx.imageSmoothingQuality = 'high';
+      cacheCtx.imageSmoothingQuality = 'high';
       let g = cover(revealImg, pw, ph);
       revealCtx.drawImage(revealImg, g.dx, g.dy, g.dw, g.dh);   // couche statique, dessinée une seule fois
       g = cover(baseImg, pw, ph);
@@ -263,8 +267,18 @@ const {
     }
 
     // ───────── démarrage ─────────
-    const q = small ? 'sm' : 'lg';
-    Promise.all([load(hero.dataset['base' + (q === 'sm' ? 'Sm' : 'Lg')]!), load(hero.dataset['reveal' + (q === 'sm' ? 'Sm' : 'Lg')]!)])
+    // Taille d'image selon les pixels réellement couverts : en "cover", un écran en portrait
+    // ne montre qu'une tranche verticale de l'image 16:9, qui doit donc être bien plus large que l'écran.
+    const pick = () => {
+      const r = hero.getBoundingClientRect();
+      const d = Math.min(devicePixelRatio || 1, 2);
+      const need = Math.max(r.width * d, r.height * d * (16 / 9));
+      if (need <= 1280 * 1.1) return 'Sm';
+      if (need <= 2400 * 1.1 || !hero.dataset.baseXl || !hero.dataset.revealXl) return 'Lg';
+      return 'Xl';
+    };
+    const q = pick();
+    Promise.all([load(hero.dataset['base' + q]!), load(hero.dataset['reveal' + q]!)])
       .then(([b, r]) => { baseImg = b; revealImg = r; resize(); requestAnimationFrame(frame); })
       .catch((err) => console.error('Hero images failed to load', err));
 
