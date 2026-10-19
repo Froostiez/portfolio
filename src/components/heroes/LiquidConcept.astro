@@ -63,9 +63,10 @@ import HeroShell from './HeroShell.astro';
   const font = (px: number) => `${FONT.style} ${FONT.weight} ${px}px "${FONT.family}", 'Arial Black', sans-serif`;
   // dégradé du mot, de gauche à droite : violet -> bleu
   const GRAD_FROM = [0.62, 0.38, 1.0], GRAD_TO = [0.26, 0.52, 1.0];
-  const PALETTE = [             // bleu-violet, violet foncé, violet pâle, cyan
-    [0.42, 0.36, 1.0], [0.30, 0.13, 0.62], [0.79, 0.72, 1.0], [0.31, 0.89, 1.0],
+  const PALETTE = [             // bleu-violet, violet foncé, violet pâle, cyan, vert d'eau (touche de vert)
+    [0.42, 0.36, 1.0], [0.30, 0.13, 0.62], [0.79, 0.72, 1.0], [0.31, 0.89, 1.0], [0.36, 1.0, 0.68],
   ];
+  const GLOW = 1.8;             // intensité de la lumière ajoutée au passage de la souris
 
   const root = document.querySelector<HTMLElement>('[data-hero="liquid"]');
   if (root) init(root);
@@ -133,12 +134,13 @@ import HeroShell from './HeroShell.astro';
           vec3 c = texture(uTexture, vUv).rgb;
           vec2 mc = vUv + texture(uCoord, vUv).xy;   // position d'origine : le dégradé suit la matière quand elle coule
           vec3 m = texture(uMask, mc).rgb;   // masque déformé : r = lettres, g = traits fins, b = point cyan
-          vec3 col = c * .55;
+          vec3 col = c * .8;
           col += m.g * vec3(.79, .72, 1.) * .25;
           col = 1. - exp(-col * 1.6);
+          col += vec3(-.03, .17, .07) * smoothstep(.5, .95, max(col.r, max(col.g, col.b)));   // reflet vert d'eau sur les zones les plus lumineuses
           // lettres pleines, blanc légèrement violet, teintées par le fluide qui passe dessous
           // lettres pleines en dégradé violet -> bleu sur tout le mot, éclairées par le fluide qui passe
-          vec3 letter = mix(uFrom, uTo, smoothstep(uWord.x, uWord.y, mc.x)) * (.92 + .16 * mc.y) + (1. - exp(-c * 1.2)) * .3;
+          vec3 letter = mix(uFrom, uTo, smoothstep(uWord.x, uWord.y, mc.x)) * (.92 + .16 * mc.y) + (1. - exp(-c * 1.2)) * .55;   // le fluide éclaire aussi les lettres
           col = mix(col, letter, clamp(m.r, 0., 1.));
           col += m.b * vec3(.31, .89, 1.) * (.85 + .15 * sin(uTime * 2.4));
           vec2 q = vUv - .5; col *= 1. - dot(q, q) * .7;
@@ -315,7 +317,7 @@ import HeroShell from './HeroShell.astro';
     const color = () => {
       hue = (hue + 0.17 + Math.random() * 0.2) % PALETTE.length;
       const a = PALETTE[Math.floor(hue)], b = PALETTE[(Math.floor(hue) + 1) % PALETTE.length], k = hue % 1;
-      return a.map((v, i) => (v + (b[i] - v) * k) * 0.16);
+      return a.map((v, i) => (v + (b[i] - v) * k) * 0.16 * GLOW);
     };
     const randomSplat = (strength = 1) => {
       const x = 0.25 + Math.random() * 0.5, y = 0.3 + Math.random() * 0.4;
