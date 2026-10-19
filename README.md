@@ -45,6 +45,8 @@ Liens : vegamon.vercel.app, mysteria-gamma.vercel.app, racketlab-two.vercel.app,
 
 ## Images
 
+`public/og.png` (1200x630) : image d'aperçu des liens partagés, déclarée dans `Base.astro` (balises Open Graph). Logo et nom au centre, pour que le recadrage carré de WhatsApp les garde.
+
 `public/images/` : `base-*.webp` / `reveal-*.webp` (hero), `projects/<projet>/...`. Dossiers en minuscules.
 Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une couleur fixe : en `<img>` utiliser la variante colorée (`loupe-dark.svg` = crème pour fond sombre). Les originaux lourds ne sont pas dans le repo ; les `card-bg-*.webp` sont des versions allégées (720 px).
 

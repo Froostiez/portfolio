@@ -3,6 +3,9 @@ import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import { url } from '../utils';
 const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d’expériences.', hero = false, bilingual = false } = Astro.props;
+// URL absolues pour les aperçus de liens (Astro.site vient de SITE, défini par le workflow GitHub Pages)
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL(url('/og.png'), Astro.site).href;
 ---
 <!doctype html>
 <html lang="fr">
@@ -16,6 +19,20 @@ const { title = 'Ferdinand Lacroix', description = 'Portfolio et laboratoire d�
     <link rel="icon" href={url('/favicon.ico')} sizes="any" />
     <link rel="apple-touch-icon" href={url('/apple-touch-icon.png')} />
     <meta name="theme-color" content="#0f0e14" />
+    <!-- Aperçu des liens (WhatsApp, LinkedIn, Messenger...) : image 1200x630 dans public/og.png -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Ferdinand Lacroix" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Ferdinand Lacroix · Portfolio & Lab" />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href={canonical} />
     <slot name="head" />
     {bilingual && (
       <script is:inline>
