@@ -7,12 +7,14 @@ export interface Photo {
   h: number;
   alt: { fr: string; en: string };
   place?: string; // lieu, affiché dans la visionneuse
+  variants?: string[]; // autres retouches de la même photo, en carrousel dans la visionneuse (fichiers <nom>.webp)
 }
 
 export const instagram = 'https://www.instagram.com/panoramiqe/';
 
 // Ordre = ordre de lecture (de gauche à droite, ligne par ligne). Commentaire = fichier d'origine dans photos-src/.
 export const photos: Photo[] = [
+  { file: 'statue', w: 1125, h: 2000, variants: ['statue-b', 'statue-c'], alt: { fr: "Statue d'un homme assis au bord d'un immeuble", en: "Statue of a man sitting on the edge of a building" } }, // IMG-20261010-WA0026-2 (+ WA0026, WA0026-3)
   { file: 'p01', w: 1500, h: 2000, alt: { fr: "Cycliste au pied d'une tour illuminée en rouge", en: "Cyclist at the foot of a tower lit in red" } }, // IMG_20210413_214857.jpg
   { file: 'p02', w: 1500, h: 2000, alt: { fr: "La tour Eiffel illuminée, vue d'en bas", en: "The Eiffel Tower lit up, seen from below" } }, // PXL_20260304_182906863.jpg
   { file: 'p03', w: 2000, h: 1333, alt: { fr: "Descente en courant dans la poussière volcanique", en: "Running down through volcanic dust" } }, // _MG_9363~2.JPG

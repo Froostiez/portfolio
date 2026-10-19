@@ -25,6 +25,7 @@ const P = '/images/photo/';
               width={800} height={Math.round((800 * ph.h) / ph.w)}
               alt={ph.alt.fr} loading={i < 6 ? 'eager' : 'lazy'} decoding="async"
             />
+            {ph.variants && <span class="multi" aria-hidden="true" title={`${ph.variants.length + 1} versions`}></span>}
           </button>
         ))}
       </div>
@@ -38,16 +39,18 @@ const P = '/images/photo/';
     <button class="nav-btn prev" type="button" aria-label="Précédente">‹</button>
     <figure>
       <img alt="" />
+      <div class="dots" aria-hidden="true"></div>
       <figcaption></figcaption>
     </figure>
     <button class="nav-btn next" type="button" aria-label="Suivante">›</button>
   </dialog>
 </Base>
 
-<script define:vars={{ list: photos.map((p) => ({ src: url(P + p.file + '.webp'), alt: p.alt, place: p.place ?? '' })) }}>
+<script define:vars={{ list: photos.flatMap((p, i) => [p.file, ...(p.variants ?? [])].map((f, k, all) => ({ src: url(P + f + '.webp'), alt: p.alt, place: p.place ?? '', g: i, k, n: all.length }))) }}>
   const dlg = document.querySelector('dialog.viewer');
   const img = dlg.querySelector('img');
   const cap = dlg.querySelector('figcaption');
+  const dots = dlg.querySelector('.dots');
   let cur = 0;
   const lang = () => (document.documentElement.dataset.lang === 'en' ? 'en' : 'fr');
   const show = (i) => {
@@ -56,11 +59,13 @@ const P = '/images/photo/';
     img.src = p.src;
     img.alt = p.alt[lang()];
     cap.textContent = p.place;
+    // carrousel : un point par retouche de la même photo
+    dots.replaceChildren(...(p.n > 1 ? Array.from({ length: p.n }, (_, k) => { const d = document.createElement('span'); if (k === p.k) d.className = 'on'; return d; }) : []));
     // précharge la suivante
     if (list.length > 1) new Image().src = list[(cur + 1) % list.length].src;
   };
   document.querySelectorAll('.shot').forEach((b) =>
-    b.addEventListener('click', () => { show(+b.dataset.i); dlg.showModal(); })
+    b.addEventListener('click', () => { show(list.findIndex((s) => s.g === +b.dataset.i)); dlg.showModal(); })
   );
   dlg.querySelector('.close').addEventListener('click', () => dlg.close());
   dlg.querySelector('.prev').addEventListener('click', () => show(cur - 1));
@@ -111,6 +116,15 @@ const P = '/images/photo/';
   .shot { display: block; width: 100%; padding: 0; margin: 0 0 12px; border: 0; background: var(--bg-2); border-radius: 10px; overflow: hidden; cursor: zoom-in; break-inside: avoid; }
   .shot img { display: block; width: 100%; height: auto; transition: transform .5s ease, opacity .3s ease; }
   .shot:hover img { transform: scale(1.03); }
+  .shot { position: relative; }
+  /* pictogramme carrousel (deux carrés superposés), comme Instagram */
+  .multi { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; pointer-events: none; }
+  .multi::before, .multi::after { content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 3px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .multi::before { right: 0; top: 0; border-left-color: transparent; border-bottom-color: transparent; }
+  .multi::after { left: 0; bottom: 0; background: rgba(255,255,255,.25); }
+  .viewer .dots { display: flex; gap: 6px; min-height: 6px; }
+  .viewer .dots :global(span) { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.35); }
+  .viewer .dots :global(span.on) { background: #fff; }
   .empty { color: var(--muted); margin-top: 40px; }
 
   .viewer { padding: 0; border: 0; background: transparent; max-width: none; max-height: none; width: 100vw; height: 100vh; overflow: hidden; }

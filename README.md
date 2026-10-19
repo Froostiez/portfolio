@@ -58,9 +58,9 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 ## Photo
 
 - Page `/photo` (bilingue) : mosaïque qui garde les formats d'origine, remplie dans l'ordre de lecture (JS : chaque photo va dans la colonne la plus courte ; colonnes CSS sans JS), visionneuse plein écran (flèches, clavier, swipe), bouton Instagram `@panoramiqe`.
-- Liste dans `src/content/photos.ts` (`file`, `w`, `h`, `alt` FR/EN, `place` optionnel). L'ordre du tableau = l'ordre d'affichage.
+- Liste dans `src/content/photos.ts` (`file`, `w`, `h`, `alt` FR/EN, `place` optionnel, `variants` optionnel : autres retouches en carrousel dans la visionneuse, pictogramme sur la vignette). L'ordre du tableau = l'ordre d'affichage.
 - Fichiers dans `public/images/photo/` : `<file>.webp` (2000 px max) + `<file>-thumb.webp` (800 px).
-- Originaux à déposer dans `photos-src/` (ignoré par git) : Claude les convertit (EXIF et GPS retirés) et remplit `photos.ts`. 36 photos en ligne (doublons écartés : `thumb_4e9`, `_MG_6153`, `thumb_323~2`).
+- Originaux à déposer dans `photos-src/` (ignoré par git) : Claude les convertit (EXIF et GPS retirés) et remplit `photos.ts`. 37 photos en ligne (la statue en ouverture, avec 3 retouches en carrousel) (doublons écartés : `thumb_4e9`, `_MG_6153`, `thumb_323~2`).
 
 ## CV
 
