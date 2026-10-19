@@ -8,6 +8,7 @@ import FlowField from '../../components/heroes/FlowField.astro';
 import Petals from '../../components/heroes/Petals.astro';
 import ForestReveal from '../../components/heroes/ForestReveal.astro';
 import IceLavaReveal from '../../components/heroes/IceLavaReveal.astro';
+import LiquidConcept from '../../components/heroes/LiquidConcept.astro';
 import HeroCopy from '../../components/heroes/HeroCopy.astro';
 import { experiments } from '../../content/experiments';
 import { url } from '../../utils';
@@ -21,6 +22,7 @@ const demos: Record<string, any> = {
   'brush-reveal': BrushReveal,
   'foret': ForestReveal,
   'glace-et-lave': IceLavaReveal,
+  'concept': LiquidConcept,
   'champ-de-croix': CrossField,
   'mise-au-point': Bokeh,
   'prairie-au-vent': Meadow,
@@ -33,7 +35,7 @@ const Demo = demos[experiment.slug];
 ---
 <Base title={`${experiment.title} · Lab`} hero bilingual>
   <Demo>
-    <HeroCopy />
+    {experiment.copy !== false && <HeroCopy />}
     <div class="lab-bar">
       <a class="pill glass" href={url('/lab')}><span data-l="fr">← Retour au lab</span><span data-l="en">← Back to the lab</span></a>
       <span class="meta"><span data-l="fr">{experiment.title}</span><span data-l="en">{experiment.titleEn}</span></span>

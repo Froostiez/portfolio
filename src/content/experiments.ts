@@ -6,6 +6,7 @@ export interface Experiment {
   description: string;
   descriptionEn: string;
   tags: string[];
+  copy?: boolean;         // false : pas de titre "Code Data Curiosity" par-dessus (le hero a déjà son texte)
 }
 
 // Ajoute une expérience : 1) une ligne ici, 2) une entrée dans `demos` de src/pages/lab/[slug].astro
@@ -27,6 +28,16 @@ export const experiments: Experiment[] = [
     description: 'Brush reveal sur deux images alignées : une forêt morte et ses ruines, et la même forêt vivante, en fleurs et baignée de lumière. Le curseur ramène la vie.',
     descriptionEn: 'Brush reveal on two aligned images: a dead forest with its ruins, and the same forest alive, in bloom and bathed in light. The cursor brings it back to life.',
     tags: ['canvas', 'interaction', 'ia-images'],
+  },
+  {
+    slug: 'concept',
+    title: 'Concept',
+    titleEn: 'Concept',
+    date: '2026-10',
+    description: 'Une vraie simulation de fluide (Navier-Stokes en WebGL) en bleu-violet et cyan : la souris remue l’encre, le mot CONCEPT sert de fenêtre plus lumineuse. Repères HUD, coordonnées et timecode en direct.',
+    descriptionEn: 'A real fluid simulation (Navier-Stokes in WebGL) in blue-violet and cyan: the mouse stirs the ink, and the word CONCEPT acts as a brighter window. HUD marks, live coordinates and timecode.',
+    tags: ['webgl', 'simulation', 'interaction'],
+    copy: false,
   },
   {
     slug: 'glace-et-lave',

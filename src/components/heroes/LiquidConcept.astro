@@ -1,0 +1,373 @@
+---
+// Concept : simulation de fluide (Navier-Stokes, WebGL2) dans la palette bleu-violet / cyan.
+// Le mot CONCEPT sert de fenêtre : le fluide y est plus lumineux. Repères HUD autour (coordonnées, timecode).
+// Inspiration : motion design "Form follows motion".
+import HeroShell from './HeroShell.astro';
+---
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@900&display=swap" />
+
+<HeroShell name="liquid" scrim={false}>
+  <div class="hud" aria-hidden="true">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <span class="lbl l-tl">CONCEPT / 001<br />FLUID.SIM</span>
+    <span class="lbl l-tr"><span data-x>X 0.500</span>&nbsp;&nbsp;<span data-y>Y 0.500</span></span>
+    <span class="lbl l-bl">NAVIER-STOKES · <span data-res>128</span>²</span>
+    <span class="lbl l-br" data-tc>00:00:00:00</span>
+    <span class="lbl sub" data-sub><span data-l="fr">idée · forme · mouvement</span><span data-l="en">idea · form · motion</span></span>
+  </div>
+  <h2 class="fallback">CONCEPT<span>.</span></h2>
+  <slot />
+</HeroShell>
+
+<style>
+  .hud { position: absolute; inset: 0; pointer-events: none; font: 500 11px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .14em; color: rgba(201, 184, 255, .62); }
+  .corner { position: absolute; width: 18px; height: 18px; border-color: rgba(201, 184, 255, .45); border-style: solid; border-width: 0; }
+  .tl { left: 24px; top: 88px; border-left-width: 1px; border-top-width: 1px; }
+  .tr { right: 24px; top: 88px; border-right-width: 1px; border-top-width: 1px; }
+  .bl { left: 24px; bottom: 24px; border-left-width: 1px; border-bottom-width: 1px; }
+  .br { right: 24px; bottom: 24px; border-right-width: 1px; border-bottom-width: 1px; }
+  .lbl { position: absolute; white-space: nowrap; }
+  .l-tl { left: 50px; top: 92px; }
+  .l-tr { right: 50px; top: 92px; text-align: right; }
+  .l-bl { left: 50px; bottom: 112px; }
+  .l-br { right: 50px; bottom: 92px; }
+  .sub { left: 50%; transform: translateX(-50%); top: 70%; color: rgba(201, 184, 255, .75); letter-spacing: .32em; text-transform: uppercase; }
+  .fallback { display: none; }
+  :global(.hero-shell.nogl) .fallback {
+    display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0;
+    font: 900 clamp(3rem, 12vw, 12rem)/1 'Unbounded', 'Arial Black', sans-serif; background: linear-gradient(90deg, #9e61ff, #4285ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  :global(.hero-shell.nogl) .fallback span { color: #4fe3ff; -webkit-text-stroke: 0; }
+  :global(.hero-shell[data-hero="liquid"]) { background: radial-gradient(ellipse at 50% 45%, #1a1240, #07060c 70%); }
+  @media (max-width: 820px) { .l-bl, .l-tr { display: none; } .l-tl { top: 140px; } .tl, .tr { top: 136px; } }
+</style>
+
+<script>
+  // ───────── CONFIG ─────────
+  const SIM_RES = 128;          // grille de vitesse
+  const DYE_RES = 1024;         // grille de couleur (512 sur mobile)
+  const PRESSURE_ITER = 20;
+  const CURL = 28;              // tourbillons (vorticity confinement)
+  const DYE_FADE = 0.9;         // dissipation de la couleur
+  const VEL_FADE = 0.25;        // dissipation de la vitesse
+  const SPLAT_FORCE = 5200;
+  const SPLAT_RADIUS = 0.22;    // en % de l'écran
+  const WARP = 1.0;             // force de la déformation du mot par le fluide
+  const HOLD = 0.7;             // s : le mot reste déformé tant qu'on bouge, puis ce délai avant de se reformer
+  const RELAX = 2.6;            // vitesse de retour à la forme d'origine (par seconde)
+  const WORD = 'CONCEPT';
+  // police du mot (chargée depuis Google Fonts en haut du fichier) ; width = largeur visée, part de l'écran
+  const FONT = { family: 'Unbounded', weight: 900, style: 'normal', width: 0.76 };
+  const font = (px: number) => `${FONT.style} ${FONT.weight} ${px}px "${FONT.family}", 'Arial Black', sans-serif`;
+  // dégradé du mot, de gauche à droite : violet -> bleu
+  const GRAD_FROM = [0.62, 0.38, 1.0], GRAD_TO = [0.26, 0.52, 1.0];
+  const PALETTE = [             // bleu-violet, violet foncé, violet pâle, cyan
+    [0.42, 0.36, 1.0], [0.30, 0.13, 0.62], [0.79, 0.72, 1.0], [0.31, 0.89, 1.0],
+  ];
+
+  const root = document.querySelector<HTMLElement>('[data-hero="liquid"]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const canvas = root.querySelector('canvas')!;
+    const gl = canvas.getContext('webgl2', { alpha: false, depth: false, stencil: false, antialias: false });
+    if (!gl || !gl.getExtension('EXT_color_buffer_float')) { root.classList.add('nogl'); return; }
+    gl.getExtension('OES_texture_float_linear');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = Math.min(innerWidth, innerHeight) < 700;
+
+    // ───────── shaders ─────────
+    const VS = `#version 300 es
+      precision highp float;
+      in vec2 aPosition; uniform vec2 texelSize;
+      out vec2 vUv, vL, vR, vT, vB;
+      void main() {
+        vUv = aPosition * .5 + .5;
+        vL = vUv - vec2(texelSize.x, 0.); vR = vUv + vec2(texelSize.x, 0.);
+        vT = vUv + vec2(0., texelSize.y); vB = vUv - vec2(0., texelSize.y);
+        gl_Position = vec4(aPosition, 0., 1.);
+      }`;
+    const head = `#version 300 es
+      precision highp float; precision highp sampler2D;
+      in vec2 vUv, vL, vR, vT, vB; out vec4 o;\n`;
+    const FS = {
+      splat: head + `uniform sampler2D uTarget; uniform float aspectRatio, radius; uniform vec3 color; uniform vec2 point;
+        void main() { vec2 p = vUv - point; p.x *= aspectRatio; vec3 s = exp(-dot(p, p) / radius) * color; o = vec4(texture(uTarget, vUv).xyz + s, 1.); }`,
+      advection: head + `uniform sampler2D uVelocity, uSource; uniform vec2 velTexel; uniform float dt, dissipation;
+        void main() { vec2 c = vUv - dt * texture(uVelocity, vUv).xy * velTexel; o = texture(uSource, c) / (1. + dissipation * dt); }`,
+      divergence: head + `uniform sampler2D uVelocity;
+        void main() {
+          float L = texture(uVelocity, vL).x, R = texture(uVelocity, vR).x, T = texture(uVelocity, vT).y, B = texture(uVelocity, vB).y;
+          vec2 C = texture(uVelocity, vUv).xy;
+          if (vL.x < 0.) L = -C.x; if (vR.x > 1.) R = -C.x; if (vT.y > 1.) T = -C.y; if (vB.y < 0.) B = -C.y;
+          o = vec4(.5 * (R - L + T - B), 0., 0., 1.);
+        }`,
+      curl: head + `uniform sampler2D uVelocity;
+        void main() { float L = texture(uVelocity, vL).y, R = texture(uVelocity, vR).y, T = texture(uVelocity, vT).x, B = texture(uVelocity, vB).x;
+          o = vec4(.5 * (R - L - T + B), 0., 0., 1.); }`,
+      vorticity: head + `uniform sampler2D uVelocity, uCurl; uniform float curl, dt;
+        void main() {
+          float L = texture(uCurl, vL).x, R = texture(uCurl, vR).x, T = texture(uCurl, vT).x, B = texture(uCurl, vB).x, C = texture(uCurl, vUv).x;
+          vec2 f = .5 * vec2(abs(T) - abs(B), abs(R) - abs(L)); f /= length(f) + 1e-4; f *= curl * C; f.y *= -1.;
+          vec2 v = texture(uVelocity, vUv).xy + f * dt; o = vec4(clamp(v, -1000., 1000.), 0., 1.);
+        }`,
+      pressure: head + `uniform sampler2D uPressure, uDivergence;
+        void main() { float L = texture(uPressure, vL).x, R = texture(uPressure, vR).x, T = texture(uPressure, vT).x, B = texture(uPressure, vB).x;
+          o = vec4((L + R + B + T - texture(uDivergence, vUv).x) * .25, 0., 0., 1.); }`,
+      gradient: head + `uniform sampler2D uPressure, uVelocity;
+        void main() { float L = texture(uPressure, vL).x, R = texture(uPressure, vR).x, T = texture(uPressure, vT).x, B = texture(uPressure, vB).x;
+          vec2 v = texture(uVelocity, vUv).xy - vec2(R - L, T - B); o = vec4(v, 0., 1.); }`,
+      identity: head + `void main() { o = vec4(0., 0., 0., 1.); }`,
+      // décalage du mot : emporté par le courant, puis ramené à 0 (au repos il vaut exactement 0, donc mot parfaitement net)
+      warp: head + `uniform sampler2D uVelocity, uCoord; uniform vec2 velTexel; uniform float dt, relax, amount;
+        void main() {
+          vec2 back = vUv - dt * amount * texture(uVelocity, vUv).xy * velTexel;
+          vec2 origin = back + texture(uCoord, back).xy;
+          o = vec4((origin - vUv) * (1. - relax), 0., 1.);
+        }`,
+      clear: head + `uniform sampler2D uTexture; uniform float value; void main() { o = value * texture(uTexture, vUv); }`,
+      display: head + `uniform sampler2D uTexture, uMask, uCoord; uniform float uTime; uniform vec2 uWord; uniform vec3 uFrom, uTo;
+        void main() {
+          vec3 c = texture(uTexture, vUv).rgb;
+          vec2 mc = vUv + texture(uCoord, vUv).xy;   // position d'origine : le dégradé suit la matière quand elle coule
+          vec3 m = texture(uMask, mc).rgb;   // masque déformé : r = lettres, g = traits fins, b = point cyan
+          vec3 col = c * .55;
+          col += m.g * vec3(.79, .72, 1.) * .25;
+          col = 1. - exp(-col * 1.6);
+          // lettres pleines, blanc légèrement violet, teintées par le fluide qui passe dessous
+          // lettres pleines en dégradé violet -> bleu sur tout le mot, éclairées par le fluide qui passe
+          vec3 letter = mix(uFrom, uTo, smoothstep(uWord.x, uWord.y, mc.x)) * (.92 + .16 * mc.y) + (1. - exp(-c * 1.2)) * .3;
+          col = mix(col, letter, clamp(m.r, 0., 1.));
+          col += m.b * vec3(.31, .89, 1.) * (.85 + .15 * sin(uTime * 2.4));
+          vec2 q = vUv - .5; col *= 1. - dot(q, q) * .7;
+          col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;  // anti-banding
+          o = vec4(col, 1.);
+        }`,
+    };
+
+    const compile = (type: number, src: string) => {
+      const s = gl.createShader(type)!; gl.shaderSource(s, src); gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || 'shader');
+      return s;
+    };
+    const vs = compile(gl.VERTEX_SHADER, VS);
+    type Prog = { p: WebGLProgram; u: Record<string, WebGLUniformLocation | null> };
+    const program = (fs: string): Prog => {
+      const p = gl.createProgram()!;
+      gl.attachShader(p, vs); gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, 'aPosition'); gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || 'link');
+      const u: Prog['u'] = {};
+      const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+      for (let i = 0; i < n; i++) { const name = gl.getActiveUniform(p, i)!.name; u[name] = gl.getUniformLocation(p, name); }
+      return { p, u };
+    };
+    let P: Record<keyof typeof FS, Prog>;
+    try { P = Object.fromEntries(Object.entries(FS).map(([k, v]) => [k, program(v)])) as any; }
+    catch (e) { console.error(e); root.classList.add('nogl'); return; }
+
+    // quad plein écran
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, 1, 1, -1]), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0, 1, 2, 0, 2, 3]), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); gl.enableVertexAttribArray(0);
+
+    // ───────── textures / FBO ─────────
+    type FBO = { tex: WebGLTexture; fbo: WebGLFramebuffer; w: number; h: number; tx: number; ty: number; attach(i: number): number };
+    const fbo = (w: number, h: number, ifmt: number, fmt: number, type: number = gl.HALF_FLOAT): FBO => {
+      gl.activeTexture(gl.TEXTURE0);
+      const tex = gl.createTexture()!; gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texImage2D(gl.TEXTURE_2D, 0, ifmt, w, h, 0, fmt, type, null);
+      const f = gl.createFramebuffer()!; gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+      gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      return { tex, fbo: f, w, h, tx: 1 / w, ty: 1 / h, attach(i) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, tex); return i; } };
+    };
+    const double = (w: number, h: number, ifmt: number, fmt: number, type: number = gl.HALF_FLOAT) => {
+      let a = fbo(w, h, ifmt, fmt, type), b = fbo(w, h, ifmt, fmt, type);
+      return { get read() { return a; }, get write() { return b; }, swap() { [a, b] = [b, a]; }, w, h, tx: 1 / w, ty: 1 / h };
+    };
+    const res = (r: number) => {
+      let a = gl.drawingBufferWidth / gl.drawingBufferHeight; if (a < 1) a = 1 / a;
+      const min = Math.round(r), max = Math.round(r * a);
+      return gl.drawingBufferWidth > gl.drawingBufferHeight ? [max, min] : [min, max];
+    };
+    let dye: ReturnType<typeof double>, vel: ReturnType<typeof double>, pres: ReturnType<typeof double>, coord: ReturnType<typeof double>, div: FBO, curl: FBO;
+    const float32 = !!gl.getExtension('OES_texture_float_linear');   // positions en 32 bits si possible (plus précis)
+    const initFBOs = () => {
+      const [sw, sh] = res(SIM_RES), [dw, dh] = res(mobile ? 512 : DYE_RES);
+      dye = double(dw, dh, gl.RGBA16F, gl.RGBA); vel = double(sw, sh, gl.RG16F, gl.RG);
+      pres = double(sw, sh, gl.R16F, gl.RED); div = fbo(sw, sh, gl.R16F, gl.RED); curl = fbo(sw, sh, gl.R16F, gl.RED);
+      const [cw, ch] = res(mobile ? 192 : 320);
+      coord = float32 ? double(cw, ch, gl.RG32F, gl.RG, gl.FLOAT) : double(cw, ch, gl.RG16F, gl.RG);
+      gl.useProgram(P.identity.p); blit(coord.read); blit(coord.write);
+      const r = root.querySelector('[data-res]'); if (r) r.textContent = String(SIM_RES);
+    };
+
+    // masque du mot (canvas 2D -> texture) : r = lettres, g = traits, b = point
+    let wordX = [0.15, 0.85];   // étendue horizontale du mot (pour le dégradé)
+    const maskCanvas = document.createElement('canvas');
+    const mctx = maskCanvas.getContext('2d')!;
+    const maskTex = gl.createTexture()!;
+    const sub = root.querySelector<HTMLElement>('[data-sub]');
+    const drawMask = () => {
+      // masque à la résolution réelle de l'écran (net en HiDPI)
+      const W = Math.min(3200, canvas.width), H = Math.round(W * canvas.height / Math.max(1, canvas.width)), px = W / Math.max(1, canvas.clientWidth);
+      maskCanvas.width = W; maskCanvas.height = H;
+      mctx.fillStyle = '#000'; mctx.fillRect(0, 0, W, H);
+      mctx.globalCompositeOperation = 'lighter';
+      let size = 100; mctx.font = font(size);
+      const m100 = mctx.measureText(WORD);
+      const h100 = m100.actualBoundingBoxAscent + m100.actualBoundingBoxDescent || 70;
+      size = Math.min((W * FONT.width) / m100.width * 100, (H * 0.30) / h100 * 100);
+      mctx.font = font(size);
+      const mt = mctx.measureText(WORD), tw = mt.width;
+      const asc = mt.actualBoundingBoxAscent || size * 0.7, desc = mt.actualBoundingBoxDescent || 0;
+      const x0 = (W - tw) / 2 - size * 0.04, cy = H * 0.47, base = cy + (asc - desc) / 2;
+      wordX = [x0 / W, (x0 + tw) / W];
+      mctx.textBaseline = 'alphabetic';
+      mctx.fillStyle = '#f00'; mctx.fillText(WORD, x0, base);
+      mctx.strokeStyle = '#0f0'; mctx.lineWidth = Math.max(1, size / 260); mctx.strokeText(WORD, x0, base);
+      // ligne d'horizon de part et d'autre du mot + orbites
+      mctx.globalAlpha = 0.55;
+      mctx.beginPath(); mctx.moveTo(W * 0.04, base + 1); mctx.lineTo(x0 - size * 0.12, base + 1);
+      mctx.moveTo(x0 + tw + size * 0.25, base + 1); mctx.lineTo(W * 0.96, base + 1); mctx.lineWidth = px; mctx.stroke();
+      mctx.globalAlpha = 0.28;
+      mctx.beginPath(); mctx.ellipse(W / 2, cy, tw * 0.62, size * 0.62, -0.08, 0, Math.PI * 2); mctx.stroke();
+      mctx.beginPath(); mctx.ellipse(W / 2, cy, tw * 0.7, size * 0.48, 0.12, 0, Math.PI * 2); mctx.stroke();
+      mctx.globalAlpha = 1;
+      // point cyan final, comme "MOTION."
+      const dx = x0 + tw + size * 0.1, dy = base - size * 0.06, r = size * 0.055;
+      const g = mctx.createRadialGradient(dx, dy, 0, dx, dy, r * 3.2);
+      g.addColorStop(0, 'rgba(0,0,255,1)'); g.addColorStop(0.3, 'rgba(0,0,255,1)'); g.addColorStop(0.34, 'rgba(0,0,255,.45)'); g.addColorStop(1, 'rgba(0,0,255,0)');
+      mctx.fillStyle = g; mctx.fillRect(dx - r * 4, dy - r * 4, r * 8, r * 8);
+      mctx.globalCompositeOperation = 'source-over';
+      if (sub) sub.style.top = `${((base + size * 0.22) / H) * 100}%`;
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, maskTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    };
+
+    // ───────── passes ─────────
+    const blit = (target: FBO | null) => {
+      if (target) { gl.viewport(0, 0, target.w, target.h); gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo); }
+      else { gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); gl.bindFramebuffer(gl.FRAMEBUFFER, null); }
+      gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
+    };
+    const use = (pr: Prog, texel: [number, number]) => { gl.useProgram(pr.p); gl.uniform2f(pr.u.texelSize, texel[0], texel[1]); return pr.u; };
+    const aspect = () => canvas.clientWidth / Math.max(1, canvas.clientHeight);
+
+    const splat = (x: number, y: number, dx: number, dy: number, color: number[]) => {
+      let u = use(P.splat, [vel.tx, vel.ty]);
+      gl.uniform1i(u.uTarget, vel.read.attach(0)); gl.uniform1f(u.aspectRatio, aspect());
+      gl.uniform2f(u.point, x, y); gl.uniform3f(u.color, dx, dy, 0);
+      let r = SPLAT_RADIUS / 100; if (aspect() > 1) r *= aspect();
+      gl.uniform1f(u.radius, r); blit(vel.write); vel.swap();
+      gl.uniform1i(u.uTarget, dye.read.attach(0)); gl.uniform3f(u.color, color[0], color[1], color[2]);
+      blit(dye.write); dye.swap();
+    };
+
+    const step = (dt: number, realDt: number = dt) => {
+      let u = use(P.curl, [vel.tx, vel.ty]); gl.uniform1i(u.uVelocity, vel.read.attach(0)); blit(curl);
+      u = use(P.vorticity, [vel.tx, vel.ty]);
+      gl.uniform1i(u.uVelocity, vel.read.attach(0)); gl.uniform1i(u.uCurl, curl.attach(1)); gl.uniform1f(u.curl, CURL); gl.uniform1f(u.dt, dt);
+      blit(vel.write); vel.swap();
+      u = use(P.divergence, [vel.tx, vel.ty]); gl.uniform1i(u.uVelocity, vel.read.attach(0)); blit(div);
+      u = use(P.clear, [vel.tx, vel.ty]); gl.uniform1i(u.uTexture, pres.read.attach(0)); gl.uniform1f(u.value, 0.8); blit(pres.write); pres.swap();
+      u = use(P.pressure, [vel.tx, vel.ty]); gl.uniform1i(u.uDivergence, div.attach(0));
+      for (let i = 0; i < PRESSURE_ITER; i++) { gl.uniform1i(u.uPressure, pres.read.attach(1)); blit(pres.write); pres.swap(); }
+      u = use(P.gradient, [vel.tx, vel.ty]); gl.uniform1i(u.uPressure, pres.read.attach(0)); gl.uniform1i(u.uVelocity, vel.read.attach(1)); blit(vel.write); vel.swap();
+      u = use(P.advection, [vel.tx, vel.ty]); gl.uniform2f(u.velTexel, vel.tx, vel.ty);
+      gl.uniform1i(u.uVelocity, vel.read.attach(0)); gl.uniform1i(u.uSource, vel.read.attach(0)); gl.uniform1f(u.dt, dt); gl.uniform1f(u.dissipation, VEL_FADE);
+      blit(vel.write); vel.swap();
+      gl.uniform1i(u.uVelocity, vel.read.attach(0)); gl.uniform1i(u.uSource, dye.read.attach(1)); gl.uniform1f(u.dissipation, DYE_FADE);
+      blit(dye.write); dye.swap();
+      // le mot suit le courant ; il ne se reforme qu'un moment après le dernier passage de la souris
+      const since = (performance.now() - lastDisturb) / 1000;
+      const k = Math.min(1, Math.max(0, (since - HOLD) / 0.8));
+      const rate = 0.12 + (RELAX - 0.12) * k * k * (3 - 2 * k);
+      u = use(P.warp, [coord.tx, coord.ty]); gl.uniform2f(u.velTexel, vel.tx, vel.ty);
+      gl.uniform1i(u.uVelocity, vel.read.attach(0)); gl.uniform1i(u.uCoord, coord.read.attach(1));
+      gl.uniform1f(u.dt, dt); gl.uniform1f(u.amount, WARP * (1 - k));   // au repos le courant ne déforme plus le mot : il se reforme et reste immobile
+      gl.uniform1f(u.relax, 1 - Math.exp(-rate * realDt));   // temps réel : même rythme sur un appareil lent
+      blit(coord.write); coord.swap();
+    };
+    const render = (t: number) => {
+      const u = use(P.display, [1 / gl.drawingBufferWidth, 1 / gl.drawingBufferHeight]);
+      gl.uniform1i(u.uTexture, dye.read.attach(0));
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, maskTex); gl.uniform1i(u.uMask, 1);
+      gl.uniform1i(u.uCoord, coord.read.attach(2));
+      gl.uniform1f(u.uTime, t); gl.uniform2f(u.uWord, wordX[0], wordX[1]);
+      gl.uniform3f(u.uFrom, GRAD_FROM[0], GRAD_FROM[1], GRAD_FROM[2]); gl.uniform3f(u.uTo, GRAD_TO[0], GRAD_TO[1], GRAD_TO[2]);
+      blit(null);
+    };
+
+    // ───────── couleur, pointeur, ambiance ─────────
+    let hue = 0;
+    const color = () => {
+      hue = (hue + 0.17 + Math.random() * 0.2) % PALETTE.length;
+      const a = PALETTE[Math.floor(hue)], b = PALETTE[(Math.floor(hue) + 1) % PALETTE.length], k = hue % 1;
+      return a.map((v, i) => (v + (b[i] - v) * k) * 0.16);
+    };
+    const randomSplat = (strength = 1) => {
+      const x = 0.25 + Math.random() * 0.5, y = 0.3 + Math.random() * 0.4;
+      const a = Math.random() * Math.PI * 2, f = (600 + Math.random() * 700) * strength;
+      splat(x, y, Math.cos(a) * f, Math.sin(a) * f, color().map((v) => v * 1.6));
+    };
+    const ptr = { x: 0, y: 0, px: 0, py: 0, moved: false, down: false, last: 0, col: color() };
+    let lastDisturb = -1e9;   // dernière action de la souris
+    const xl = root.querySelector('[data-x]'), yl = root.querySelector('[data-y]'), tc = root.querySelector('[data-tc]');
+    root.addEventListener('pointermove', (e) => {
+      const r = root.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width, y = 1 - (e.clientY - r.top) / r.height;
+      if (!ptr.last) { ptr.px = x; ptr.py = y; }
+      ptr.x = x; ptr.y = y; ptr.moved = true; ptr.last = lastDisturb = performance.now();
+      if (xl) xl.textContent = `X ${x.toFixed(3)}`; if (yl) yl.textContent = `Y ${y.toFixed(3)}`;
+    });
+    root.addEventListener('pointerdown', () => { lastDisturb = performance.now(); ptr.col = color().map((v) => v * 2.2); for (let i = 0; i < 3; i++) randomSplat(0.4); ptr.col = color(); });
+
+    // ───────── boucle ─────────
+    const resize = () => {
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+      if (canvas.width === w && canvas.height === h && dye) return false;
+      canvas.width = w; canvas.height = h; initFBOs(); drawMask(); return true;
+    };
+    resize();
+    (document as any).fonts?.load?.(font(100)).then(drawMask).catch(() => {});
+    (document as any).fonts?.ready?.then(drawMask);
+
+    const t0 = performance.now();
+    if (reduced) { render(0); new ResizeObserver(() => { if (resize()) render(0); }).observe(root); return; }
+
+    let last = performance.now(), raf = 0, visible = true, frames = 0;
+    const loop = (now: number) => {
+      raf = 0;
+      if (!visible || document.hidden) return;
+      resize();
+      const realDt = Math.min((now - last) / 1000, 0.1), dt = Math.min(realDt, 1 / 60); last = now;
+      if (ptr.moved) {
+        ptr.moved = false;
+        const dx = (ptr.x - ptr.px) * SPLAT_FORCE, dy = (ptr.y - ptr.py) * SPLAT_FORCE;
+        if (Math.abs(dx) + Math.abs(dy) > 0.5) { if (++frames % 24 === 0) ptr.col = color(); splat(ptr.x, ptr.y, dx, dy, ptr.col); }
+        ptr.px = ptr.x; ptr.py = ptr.y;
+      }
+      step(dt, realDt);
+      render((now - t0) / 1000);
+      if (tc) { const s = (now - t0) / 1000, f = Math.floor((s % 1) * 24), p = (n: number) => String(Math.floor(n)).padStart(2, '0'); tc.textContent = `${p(s / 3600)}:${p((s / 60) % 60)}:${p(s % 60)}:${p(f)}`; }
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) start(); }).observe(root);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+    start();
+  }
+</script>
