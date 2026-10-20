@@ -7,7 +7,7 @@ const {
   baseLg = '/images/base-2400.webp', baseSm = '/images/base-1280.webp',
   revealLg = '/images/reveal-2400.webp', revealSm = '/images/reveal-1280.webp',
   baseXl, revealXl,          // optionnel : pleine résolution, pour téléphones en portrait et grands écrans HiDPI
-  label = 'Move to reveal',
+  label = 'Move to reveal', labelFr,   // labelFr : texte d'invite en français (pages bilingues)
 } = Astro.props;
 ---
 <section
@@ -25,7 +25,7 @@ const {
   <div class="scrim top-scrim"></div>
   <div class="scrim bottom-scrim"></div>
   <div class="content"><slot /></div>
-  <div class="idle-label" aria-hidden="true">{label}</div>
+  <div class="idle-label" aria-hidden="true">{labelFr ? <><span data-l="en">{label}</span><span data-l="fr">{labelFr}</span></> : label}</div>
   <div class="ring" aria-hidden="true"></div>
 </section>
 

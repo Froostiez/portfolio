@@ -3,16 +3,16 @@ import Base from '../layouts/Base.astro';
 import BrushReveal from '../components/BrushReveal.astro';
 import { url } from '../utils';
 ---
-<Base title="Ferdinand Lacroix · Portfolio & Lab" hero>
-  <BrushReveal>
+<Base title="Ferdinand Lacroix · Portfolio & Lab" description="Portfolio et laboratoire d’expériences de Ferdinand Lacroix, élève ingénieur à Télécom SudParis. / Portfolio and lab of experiments." hero bilingual>
+  <BrushReveal label="Move to reveal" labelFr="Bouge pour révéler">
     <div class="bottom">
       <div class="left">
         <span class="eyebrow">Portfolio &amp; Lab</span>
-        <h1>Code<br />Data<br />Curiosity</h1>
+        <h1>Code<br />Data<br /><span data-l="en">Curiosity</span><span data-l="fr">Curiosité</span></h1>
       </div>
       <div class="right">
-        <a class="pill glass" href={url('/projects')}>Projects</a>
-        <a class="pill solid" href={url('/lab')}>Open the lab</a>
+        <a class="pill glass" href={url('/projects')}><span data-l="fr">Projets</span><span data-l="en">Projects</span></a>
+        <a class="pill solid" href={url('/lab')}><span data-l="fr">Ouvrir le lab</span><span data-l="en">Open the lab</span></a>
       </div>
     </div>
   </BrushReveal>

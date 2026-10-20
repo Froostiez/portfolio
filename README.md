@@ -55,7 +55,7 @@ Formats WebP, pas de base64. Les SVG RacketLab utilisent `currentColor` ou une c
 
 - Activé page par page : `<Base ... bilingual>`. Ça affiche le bouton FR/EN dans la nav et choisit la langue (choix mémorisé dans `localStorage`, sinon langue du navigateur).
 - Dans la page, doubler chaque texte : `<span data-l="fr">…</span><span data-l="en">…</span>` (marche aussi sur `p`, `a`, etc.). La règle CSS est dans `global.css`.
-- Pages bilingues : `about`, `contact`, `photo`, `projects`, `lab` et les pages d'expériences. Seul l'accueil reste en français/anglais mélangé.
+- Pages bilingues : `about`, `contact`, `photo`, `projects`, `lab` et les pages d'expériences. L'accueil aussi (titre, boutons, invite du pinceau via `labelFr` de `BrushReveal`). La nav reste en anglais partout.
 - Données : `projects.ts` a `descriptionEn` (et `linkLabelEn`), `experiments.ts` a `titleEn` / `descriptionEn`. Vidéo : `video` / `videoPoster` = anglais, `videoFr` / `videoPosterFr` = français, choisie selon la langue au clic.
 
 ## Photo
@@ -81,5 +81,4 @@ Déposer `public/cv/cv-fr.pdf` et/ou `public/cv/cv-en.pdf` : le bouton de télé
 - Miette : vidéo de démo ajoutée ; description plus précise si besoin (le code peut être fourni).
 - Favicon : fait ("F" blanc + croix rose en x (clin d'oeil à Lacroix) sur fond #0f0e14, SVG + PNG 32 + ICO + apple-touch 180, dans `public/`).
 - About et Contact : faits, bilingues. CV FR et EN déposés dans `public/cv/` (versions web sans numéro de téléphone, recompilées depuis les .tex).
-- Bilingue : il ne reste que l'accueil si voulu.
 - Décisions prises : couleurs du dos de carte Vegamon et résolution de la pièce suffisantes, Choipo reste en logo seul, l'URL garde `/portfolio`.
