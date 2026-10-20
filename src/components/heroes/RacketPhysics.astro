@@ -1,0 +1,991 @@
+---
+// Raquette : la déflexion de la tige d'une raquette de badminton (TIPE de Ferdinand Lacroix).
+// La tige est une poutre encastrée (δ = F L³ / 3EI = K·F) ; en swing, elle se comporte comme un système masse-ressort :
+// la tête prend du retard sur le manche, puis « fouette » et le dépasse. Deux raquettes réelles du TIPE, avec leurs mesures.
+// Glisser : orbite. Clic, geste rapide ou espace : swing.
+import HeroShell from './HeroShell.astro';
+---
+<HeroShell name="racket" scrim={false}>
+  <div class="hud" aria-hidden="true">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="lbl l-tl">
+      RACKET / 010<br />SHAFT.DEFLECTION
+      <span class="eq">δ = F L³ / 3EI = K·F</span>
+      <span class="eq e2 mh">ẍ<sub>T</sub> + ω₀² x<sub>T</sub> = ω₀² x<sub>M</sub></span>
+    </div>
+    <div class="lbl l-tr">
+      <span class="row"><i>K<sub>exp</sub></i><b data-k>0</b> mm/N</span>
+      <span class="row dim"><i>K<sub>th</sub></i><b data-kth>0</b> mm/N</span>
+      <span class="row mh"><i>E</i><b data-e>0</b> GPa</span>
+      <span class="row dim"><i>I</i><b>117.8</b> mm⁴</span>
+      <span class="row mh"><i>ω₀</i><b data-w0>0</b> rad/s</span>
+      <span class="row"><i>ω̃ = ω/ω₀</i><b data-wt>0</b></span>
+      <span class="row dim"><i>T</i><b data-tc>00:00:000</b></span>
+      <span class="row slow" data-slowrow><i><span data-l="fr">ralenti</span><span data-l="en">slow-mo</span></i><b data-slow>×1</b></span>
+    </div>
+
+    <div class="cue" data-cue><span class="cue-txt" data-cuetxt></span></div>
+
+    <div class="panel">
+      <div class="ctrls">
+        <div class="seg" role="group" aria-label="Raquette / Racket" data-rk>
+          <button type="button" data-v="perfly" class="on">Perfly Lite <small><span data-l="fr">carbone</span><span data-l="en">carbon</span></small></button>
+          <button type="button" data-v="babolat">Babolat <small><span data-l="fr">acier</span><span data-l="en">steel</span></small></button>
+        </div>
+        <div class="seg sm" role="group" aria-label="Masse en tête / Head mass" data-mass>
+          <span class="seg-l"><span data-l="fr">masse en tête</span><span data-l="en">head mass</span></span>
+          <button type="button" data-v="0" class="on">+0 g</button><button type="button" data-v="40">+40</button><button type="button" data-v="90">+90</button><button type="button" data-v="180">+180</button>
+        </div>
+        <label class="slider">
+          <span class="seg-l"><span data-l="fr">durée du swing τ₁</span><span data-l="en">swing time τ₁</span></span>
+          <input type="range" min="0" max="1000" value="0" data-tau aria-label="τ1" />
+          <b data-tauv>70 ms</b>
+        </label>
+      </div>
+      <div class="p-body">
+        <div class="scopebox">
+          <div class="p-head">
+            <span><span data-l="fr">Vitesses et déflexion<span class="lg"> au cours du swing</span></span><span data-l="en">Speeds and deflection<span class="lg"> during the swing</span></span></span>
+          </div>
+          <canvas class="scope" data-scope></canvas>
+          <div class="legend">
+            <span><i class="lg-line lm"></i><span data-l="fr">manche</span><span data-l="en">handle</span></span>
+            <span><i class="lg-line lt"></i><span data-l="fr">tête</span><span data-l="en">head</span></span>
+            <span><i class="lg-area"></i><span class="nt">δ(t)</span></span>
+          </div>
+        </div>
+        <div class="gainbox">
+          <div class="p-head"><span class="nt">v<sub>T</sub> / v<sub>M</sub> (ω̃)</span></div>
+          <canvas class="gain" data-gain></canvas>
+          <div class="legend mh"><span><i class="lg-dot"></i><span data-l="fr">ce swing</span><span data-l="en">this swing</span></span></div>
+        </div>
+      </div>
+      <p class="verdict" data-verdict>
+        <span data-l="fr">Cliquez pour lancer un swing et voir la tige se courber.</span><span data-l="en">Click to swing and watch the shaft bend.</span>
+      </p>
+      <div class="p-vals">
+        <span><i><span data-l="fr">Déflexion max <span class="nt">δ</span></span><span data-l="en">Max deflection <span class="nt">δ</span></span></i><b data-dmax>–</b></span>
+        <span><i><span data-l="fr">Gain tête / manche</span><span data-l="en">Head / handle gain</span></i><b data-gainv>–</b></span>
+        <span><i><span data-l="fr">Volant<span class="lg"> (estimation)</span></span><span data-l="en">Shuttle<span class="lg"> (estimate)</span></span></i><b data-vs>–</b></span>
+        <span class="mh"><i><span data-l="fr">Vitesse max manche</span><span data-l="en">Max handle speed</span></i><b data-vm>–</b></span>
+        <span class="mh"><i><span data-l="fr">Vitesse max tête</span><span data-l="en">Max head speed</span></i><b data-vt>–</b></span>
+        <span><i><span data-l="fr">Mesuré au TIPE</span><span data-l="en">Measured (TIPE)</span></i><b data-meas>–</b></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- encart d'explication (refermable, réouvrable via le bouton « ? ») -->
+  <button class="help" type="button" data-help aria-controls="rk-intro" aria-expanded="true">
+    <b>?</b><span data-l="fr">Comment ça marche</span><span data-l="en">How it works</span>
+  </button>
+  <aside class="intro" id="rk-intro" data-intro role="dialog" aria-labelledby="rk-intro-t">
+    <button class="x" type="button" data-close aria-label="Fermer / Close">×</button>
+    <h2 id="rk-intro-t"><span data-l="fr">La déflexion de la raquette</span><span data-l="en">Racket shaft deflection</span></h2>
+    <dl>
+      <dt><span data-l="fr">Ce que vous voyez</span><span data-l="en">What you see</span></dt>
+      <dd>
+        <span data-l="fr">Pendant le swing, la tige se courbe : la tête prend du retard sur le manche, puis elle « fouette » et va plus vite que lui. Ensuite la tige oscille et s’amortit.</span>
+        <span data-l="en">During the swing the shaft bends: the head lags behind the handle, then whips forward and moves faster than it. The shaft then oscillates and settles.</span>
+      </dd>
+      <dt><span data-l="fr">À vous de jouer</span><span data-l="en">Your turn</span></dt>
+      <dd>
+        <span data-l="fr">Choisissez une raquette, ajoutez de la masse en tête, réglez la durée du swing, puis <b>cliquez</b> (ou faites un <b>geste rapide</b>). <b>Glissez</b> pour tourner autour.</span>
+        <span data-l="en">Pick a racket, add mass to the head, set the swing time, then <b>click</b> (or <b>flick</b>). <b>Drag</b> to orbit.</span>
+      </dd>
+      <dt><span data-l="fr">Le modèle</span><span data-l="en">The model</span></dt>
+      <dd>
+        <span data-l="fr">La tige est une poutre encastrée : δ = F L³ / 3EI = K·F. J’ai mesuré K = 9,9 mm/N (Perfly Lite BR560, carbone, 80 g, 675 mm) et 7,5 mm/N (Babolat Speedlighter, acier, 105 g, 662 mm), pour 9,1 et 7,0 en théorie. En swing, la tête est une masse reliée au manche par ce ressort : le gain de vitesse dépend de ω̃ = ω/ω₀, avec un maximum de 1,77 vers ω̃ ≈ 0,6.</span>
+        <span data-l="en">The shaft is a cantilever beam: δ = F L³ / 3EI = K·F. I measured K = 9.9 mm/N (Perfly Lite BR560, carbon, 80 g, 675 mm) and 7.5 mm/N (Babolat Speedlighter, steel, 105 g, 662 mm), against 9.1 and 7.0 in theory. In a swing, the head is a mass tied to the handle by this spring: the speed gain depends on ω̃ = ω/ω₀, peaking at 1.77 near ω̃ ≈ 0.6.</span>
+      </dd>
+      <dt>TIPE</dt>
+      <dd>
+        <span data-l="fr">Tiré de mon TIPE de prépa « La déflexion de la raquette de badminton ». Mes mesures (lancer à l’électroaimant, vidéo puis accéléromètre) donnent des rapports tête / manche de 0,6 à 1,6 selon la raquette et la masse ajoutée.</span>
+        <span data-l="en">From my prépa research project (TIPE) “Badminton racket deflection”. My measurements (electromagnet launch, video then accelerometer) gave head / handle ratios from 0.6 to 1.6 depending on the racket and the added mass.</span>
+      </dd>
+    </dl>
+    <button class="ok" type="button" data-ok><span data-l="fr">Compris, à moi</span><span data-l="en">Got it</span></button>
+  </aside>
+  <p class="fallback">
+    <span data-l="fr">WebGL n’est pas disponible sur cet appareil : la raquette ne peut pas être affichée.</span>
+    <span data-l="en">WebGL is not available on this device, so the racket cannot be displayed.</span>
+  </p>
+  <slot />
+</HeroShell>
+
+<style>
+  :global(.hero-shell[data-hero="racket"]) { background: radial-gradient(ellipse 80% 70% at 52% 38%, #211a35 0%, #14111d 45%, #0f0e14 75%); cursor: grab; }
+  :global(.hero-shell[data-hero="racket"]:active) { cursor: grabbing; }
+  .hud { position: absolute; inset: 0; pointer-events: none; font: 500 11px/1.55 ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; letter-spacing: .14em; color: rgba(201, 184, 255, .66); text-transform: uppercase; }
+  .hud sub, .intro sub { font-size: .75em; vertical-align: -.2em; letter-spacing: 0; }
+  .corner { position: absolute; width: 18px; height: 18px; border-color: rgba(201, 184, 255, .4); border-style: solid; border-width: 0; }
+  .tl { left: 24px; top: 88px; border-left-width: 1px; border-top-width: 1px; }
+  .tr { right: 24px; top: 88px; border-right-width: 1px; border-top-width: 1px; }
+  .bl { left: 24px; bottom: 24px; border-left-width: 1px; border-bottom-width: 1px; }
+  .br { right: 24px; bottom: 24px; border-right-width: 1px; border-bottom-width: 1px; }
+  .lbl { position: absolute; white-space: nowrap; }
+  .l-tl { left: 50px; top: 92px; }
+  .eq { display: block; margin-top: 10px; text-transform: none; letter-spacing: .06em; color: rgba(243, 239, 248, .62); font-size: 11.5px; }
+  .eq.e2 { margin-top: 3px; }
+  .l-tr { right: 50px; top: 92px; text-align: right; display: grid; gap: 1px; }
+  .row { display: flex; justify-content: flex-end; gap: 10px; }
+  .row i, .p-vals i { font-style: normal; color: rgba(169, 163, 184, .7); }
+  .row i, .l-tr, .p-vals b, .nt, .slider b { text-transform: none; }
+  .row b, .p-vals b { font-weight: 500; color: #f3eff8; min-width: 6ch; text-align: right; }
+  .dim { opacity: .7; }
+  .slow { transition: opacity .3s ease; opacity: 0; }
+  .slow b { color: #ffa8cf; }
+  .slow.on { opacity: 1; }
+
+  /* repère d'action, centré en haut */
+  .cue {
+    position: absolute; left: 50%; top: 128px; transform: translate(-50%, 6px); text-align: center;
+    opacity: 0; transition: opacity .35s ease, transform .35s ease;
+  }
+  .cue.on { opacity: 1; transform: translate(-50%, 0); }
+  .cue-txt { font-size: 12px; letter-spacing: .24em; color: rgba(243, 239, 248, .82); white-space: nowrap; }
+  .cue.hot .cue-txt { color: #ffa8cf; text-shadow: 0 0 18px rgba(255, 168, 207, .55); }
+  .cue.calm .cue-txt { color: rgba(201, 184, 255, .85); }
+
+  .panel {
+    position: absolute; left: 50px; bottom: 50px; width: 440px; padding: 12px 14px 12px; border-radius: 14px; pointer-events: auto; cursor: auto;
+    background: rgba(18, 15, 28, .56); border: 1px solid rgba(201, 184, 255, .14);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    max-height: calc(100% - 240px); overflow-y: auto; scrollbar-width: thin;   /* ne remonte jamais sur les équations */
+  }
+  /* écrans peu hauts : panneau plus compact */
+  @media (min-width: 821px) and (max-height: 720px) {
+    .scope, .gain { height: 64px; }
+    .p-vals { grid-template-columns: repeat(6, auto); gap: 4px 10px; margin-top: 6px; padding-top: 6px; }
+    .p-vals b { font-size: 12px; }
+    .verdict { font-size: 11.5px; margin-top: 6px; }
+    .ctrls { gap: 5px; padding-bottom: 7px; margin-bottom: 7px; }
+    .eq.e2 { display: none; }
+  }
+  .ctrls { display: grid; gap: 7px; padding-bottom: 10px; margin-bottom: 9px; border-bottom: 1px solid rgba(201, 184, 255, .12); }
+  .seg { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .seg button {
+    flex: 1; padding: 6px 8px; border-radius: 9px; cursor: pointer; text-align: left;
+    background: rgba(201, 184, 255, .05); border: 1px solid rgba(201, 184, 255, .18); color: rgba(243, 239, 248, .72);
+    font: 600 11.5px/1.2 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; text-transform: none;
+    transition: border-color .2s ease, background .2s ease, color .2s ease;
+  }
+  .seg button small { display: block; font: 500 9px/1.3 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: rgba(169, 163, 184, .8); }
+  .seg.sm button { flex: 0 0 auto; padding: 4px 9px; border-radius: 999px; font: 500 10.5px/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .04em; text-align: center; }
+  .seg button.on { border-color: rgba(255, 168, 207, .6); background: rgba(255, 168, 207, .12); color: #fff; }
+  .seg button:hover, .seg button:focus-visible { border-color: rgba(201, 184, 255, .55); outline: none; }
+  .seg-l { font-size: 9px; letter-spacing: .14em; color: rgba(169, 163, 184, .8); margin-right: 4px; white-space: nowrap; }
+  .slider { display: flex; align-items: center; gap: 10px; }
+  .slider input { flex: 1; min-width: 0; accent-color: #ffa8cf; height: 18px; cursor: pointer; }
+  .slider b { font-weight: 500; color: #f3eff8; font-size: 11.5px; min-width: 6ch; text-align: right; letter-spacing: .04em; }
+  .p-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 4px; font-size: 9.5px; letter-spacing: .12em; }
+  .p-body { display: flex; gap: 12px; align-items: stretch; }
+  .scopebox { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .gainbox { width: 112px; display: flex; flex-direction: column; gap: 4px; }
+  .scope { width: 100%; height: 96px; display: block; }
+  .gain { width: 100%; height: 96px; display: block; }
+  .legend { display: flex; gap: 10px; font-size: 8.5px; letter-spacing: .12em; color: rgba(169, 163, 184, .75); }
+  .legend > span { display: inline-flex; align-items: center; gap: 5px; }
+  .lg-line { display: inline-block; width: 12px; height: 0; border-top: 1.6px solid; }
+  .lg-line.lm { border-color: #ffa8cf; }
+  .lg-line.lt { border-color: #8fd8ff; }
+  .lg-area { display: inline-block; width: 12px; height: 7px; border-radius: 2px; background: rgba(201, 184, 255, .35); }
+  .lg-dot { width: 6px; height: 6px; border-radius: 50%; background: #ffa8cf; box-shadow: 0 0 4px rgba(255, 168, 207, .9); }
+  .verdict {
+    margin: 9px 0 0; font: 400 12.5px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; text-transform: none;
+    color: rgba(243, 239, 248, .88); white-space: normal;
+  }
+  .verdict :global(b) { color: #ffa8cf; font-weight: 600; }
+  .p-vals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px 12px; margin-top: 9px; padding-top: 9px; border-top: 1px solid rgba(201, 184, 255, .12); font-size: 8.5px; letter-spacing: .1em; }
+  .p-vals > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .p-vals i { white-space: normal; line-height: 1.35; }
+  .p-vals b { text-align: left; font-size: 13.5px; letter-spacing: .03em; min-width: 0; white-space: nowrap; }
+
+  /* bouton « ? » et encart d'explication */
+  .help {
+    position: absolute; left: 228px; top: 92px; display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px 4px 4px; border-radius: 999px;
+    background: rgba(18, 15, 28, .5); border: 1px solid rgba(201, 184, 255, .22); color: rgba(243, 239, 248, .8); cursor: pointer;
+    font: 500 10px/1 ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; letter-spacing: .14em; text-transform: uppercase;
+    transition: opacity .3s ease, border-color .2s ease, color .2s ease; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .help b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(201, 184, 255, .16); color: #c9b8ff; font-size: 11px; }
+  .help:hover, .help:focus-visible { border-color: rgba(201, 184, 255, .6); color: #f3eff8; outline: none; }
+  .help.hide { opacity: 0; pointer-events: none !important; }
+  .intro {
+    position: absolute; right: 50px; top: 262px; width: 400px; max-height: calc(100% - 370px); overflow: auto; z-index: 2;
+    padding: 18px 20px 16px; border-radius: 18px; pointer-events: auto; cursor: auto; user-select: text; -webkit-user-select: text;
+    background: rgba(20, 17, 31, .93); border: 1px solid rgba(201, 184, 255, .2); box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); color: #f3eff8;
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .intro.closed { opacity: 0; transform: translateY(8px); pointer-events: none; visibility: hidden; transition: opacity .3s ease, transform .3s ease, visibility 0s .3s; }
+  .intro h2 { margin: 0 28px 12px 0; font-size: 17px; line-height: 1.25; font-weight: 650; letter-spacing: -.01em; }
+  .intro dl { margin: 0; display: grid; gap: 9px; }
+  .intro dt { font: 500 9.5px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace; letter-spacing: .18em; text-transform: uppercase; color: #c9b8ff; }
+  .intro dd { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: rgba(243, 239, 248, .78); }
+  .intro dd b { color: #f3eff8; font-weight: 600; }
+  .intro .x {
+    position: absolute; right: 12px; top: 12px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(201, 184, 255, .2);
+    background: transparent; color: rgba(243, 239, 248, .75); font-size: 17px; line-height: 1; cursor: pointer;
+  }
+  .intro .ok {
+    margin-top: 14px; padding: 8px 16px; border-radius: 999px; border: 1px solid rgba(255, 168, 207, .45); cursor: pointer;
+    background: rgba(255, 168, 207, .12); color: #ffd2e6; font: 600 13px/1.2 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  .intro .x:hover, .intro .ok:hover, .intro .x:focus-visible, .intro .ok:focus-visible { border-color: #ffa8cf; color: #fff; outline: none; }
+
+  .fallback { display: none; }
+  :global(.hero-shell.nogl) .fallback {
+    display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; max-width: 32ch; text-align: center;
+    color: #a9a3b8; font: 500 13px/1.6 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em;
+  }
+  :global(.hero-shell.nogl) .hud, :global(.hero-shell.nogl) .help, :global(.hero-shell.nogl) .intro { display: none; }
+
+  @media (max-width: 820px) {
+    .tl, .tr { top: 132px; }
+    .l-tl, .l-tr { top: 136px; }
+    .l-tl { left: 40px; } .l-tr { right: 40px; }
+    .eq { font-size: 10px; margin-top: 6px; }
+    .l-tr { font-size: 10px; gap: 0; }
+    .mh, .l-tr .dim, .seg button small { display: none !important; }
+    .help { left: 40px; top: 196px; }
+    .cue { top: 236px; width: calc(100% - 48px); }
+    .cue-txt { font-size: 10px; letter-spacing: .14em; white-space: normal; line-height: 1.5; }
+    .panel { left: 12px; right: 12px; bottom: 12px; width: auto; padding: 10px 11px; }
+    .panel .lg { display: none !important; }
+    .bl, .br { display: none; }
+    .ctrls { gap: 6px; padding-bottom: 8px; margin-bottom: 7px; }
+    .seg button { padding: 5px 7px; font-size: 11px; }
+    .seg.sm button { padding: 3px 8px; }
+    .scope, .gain { height: 54px; }
+    .gainbox { width: 96px; }
+    .p-vals { grid-template-columns: repeat(4, auto); }
+    .verdict { font-size: 11.5px; line-height: 1.4; margin-top: 6px; }
+    .p-vals { margin-top: 6px; padding-top: 6px; gap: 4px 10px; font-size: 7.5px; }
+    .p-vals b { font-size: 12px; }
+    .intro { left: 12px; right: 12px; width: auto; top: 128px; max-height: calc(100% - 144px); padding: 16px 16px 14px; }
+    .intro h2 { font-size: 16px; }
+    .intro dd { font-size: 12.5px; }
+  }
+</style>
+
+<script>
+  import * as THREE from 'three';
+  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+
+  // ───────── CONFIG ─────────
+  // Les deux raquettes du TIPE (mesures et caractéristiques tirées des diapositives)
+  type Racket = { id: string; name: string; M: number; L: number; E: number; Kexp: number; Kth: number; meas: Record<number, number[]> };
+  const RACKETS: Record<string, Racket> = {
+    // M en kg, L en mm, E en GPa, K en mm/N ; meas : rapports v_tête / v_manche mesurés (3 traitements) selon la masse ajoutée en tête (g)
+    perfly: { id: 'perfly', name: 'Perfly Lite BR560', M: 0.080, L: 675, E: 230, Kexp: 9.9, Kth: 9.1, meas: { 40: [1.27, 0.99, 0.90], 90: [1.24, 1.13, 0.92], 180: [1.17, 0.84, 0.79] } },
+    babolat: { id: 'babolat', name: 'Babolat Speedlighter', M: 0.105, L: 662, E: 200, Kexp: 7.5, Kth: 7.0, meas: { 0: [0.97, 0.91, 0.91], 40: [0.93, 0.88, 0.90], 90: [1.28, 0.76, 0.91], 180: [1.24, 0.62, 0.66] } },
+  };
+  const M_EQ = 0.23;          // masse équivalente de la poutre : m = 0,23 M (+ masse ajoutée en tête), comme dans le TIPE
+  const ZETA = 0.05;          // amortissement réduit (absent du modèle du TIPE, ajouté pour que la tige s'apaise)
+  const A_SWING = 0.15;       // m, demi-course du manche : x_M(t) = -a cos(ωt) avec ω = π / τ₁
+  const TAU_MIN = 0.03, TAU_MAX = 0.4, TAU_DEFAULT = 0.07;   // s, bornes et valeur par défaut de τ₁ (durée du swing)
+  const STUDY_PEAK = 1.77, STUDY_WT = 0.6;                    // optimum de l'étude de référence
+  const E_SHUTTLE = 0.75;     // coefficient de restitution volant / tamis (estimation de la vitesse du volant)
+  const M_SHUTTLE = 0.0052;   // kg
+  const CONTACT_FRAC = 0.55;  // position du volant sur la course de la tête (en fraction de a)
+  const SWING_REAL = 5.2;     // s (temps réel) pour montrer le swing et l'oscillation de la tige au ralenti
+  const VIS_MAX = 0.17;       // m, déflexion maximale affichée à l'écran (saturation douce au-delà)
+  const ARM = 0.6;            // m, distance entre l'axe de l'épaule et la raquette
+  const V_TERM = 6.8;         // m/s, vitesse limite du volant (traînée quadratique)
+  const FLIP_K = 25;          // raideur du retournement bouchon en avant
+  const SHUTTLE_SCALE = 1.3;  // agrandissement du volant pour la lisibilité
+  const ORBIT_INERTIA = 0.93; // inertie de l'orbite (par image à 60 fps)
+  const TRAIL_POINTS = 90;    // longueur de la traînée lumineuse
+  const FLICK_SPEED = 1.0;    // px/ms : au-delà, un geste court déclenche un swing
+  const FOLLOW_LOOK = 0.6;    // part du chemin raquette -> volant vers laquelle la caméra regarde après la frappe
+  const FOLLOW_ZOOM = 0.3;    // recul relatif de la caméra pendant le suivi
+
+  // ───────── constantes dérivées et géométrie (m) ─────────
+  // Repère raquette : bas du manche en y = 0, cordage dans le plan z = 0, normale +z (sens du swing).
+  const H = 1 / 4000;                       // pas fixe de la simulation
+  const G = 9.81, K_DRAG = G / (V_TERM * V_TERM);
+  const HEAD_CY = 0.555, HEAD_A = 0.1, HEAD_B = 0.125, EGG = 0.1;
+  const HEAD_TOP = HEAD_CY + HEAD_B, HEAD_BOT = HEAD_CY - HEAD_B;
+  const INSET = 0.006, IA = HEAD_A - INSET, IB = HEAD_B - INSET;
+  const PIVOT_DROP = 0.05, FLOOR = -1.02, NET_Z = 2.4, SPINK = 10;
+  const Y0 = 0.205;                         // encastrement : haut du manche
+  const LB = HEAD_BOT - Y0;                 // longueur de tige libre (poutre)
+  const HEAD_K = 1 + (1.5 * (HEAD_CY - HEAD_BOT)) / LB;   // δ au centre de la tête = δ_tige × HEAD_K (tête rigide)
+
+  const root = document.querySelector<HTMLElement>('[data-hero="racket"]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const canvas = root.querySelector<HTMLCanvasElement>(':scope > canvas')!;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = Math.min(innerWidth, innerHeight) < 700;
+    const fr = () => document.documentElement.dataset.lang !== 'en';
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+      if (!renderer.getContext()) throw new Error('webgl');
+    } catch (e) { root.classList.add('nogl'); return; }
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x120f1a, 3.2, 15);
+    scene.background = (() => {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512; const x = c.getContext('2d')!;
+      const g = x.createRadialGradient(266, 200, 0, 256, 220, 380);
+      g.addColorStop(0, '#231b38'); g.addColorStop(0.45, '#15121e'); g.addColorStop(1, '#0d0c12');
+      x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.55;
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.02, 80);
+
+    // ───────── lumières ─────────
+    scene.add(new THREE.HemisphereLight(0xc9b8ff, 0x0f0e14, 0.5));
+    const key = new THREE.DirectionalLight(0xfff4fb, 2.2); key.position.set(1.5, 3, -2.2); scene.add(key);
+    const rimPink = new THREE.DirectionalLight(0xffa8cf, 2.4); rimPink.position.set(-2.5, 1.2, 2.5); scene.add(rimPink);
+    const rimCyan = new THREE.DirectionalLight(0x7fe6ff, 1.4); rimCyan.position.set(2.8, 0.4, 2.2); scene.add(rimCyan);
+    const fill = new THREE.PointLight(0x8f7bff, 1.2, 4, 1.5); fill.position.set(-0.6, 0.5, -0.8); scene.add(fill);
+
+    // ───────── flexion de la tige (injectée dans les shaders) ─────────
+    // Profil de poutre encastrée chargée en bout : w(u) = δ u² (3 - u) / 2 sur la tige, puis tête rigide (rotation de pente 3δ / 2L).
+    const U = { uDef: { value: 0 } };
+    const f = (n: number) => n.toFixed(5);
+    const deform = (mat: THREE.Material, keyName: string) => {
+      mat.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, U);
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', `#include <common>
+            uniform float uDef;`)
+          .replace('#include <begin_vertex>', `#include <begin_vertex>
+            {
+              float y = transformed.y;
+              float u = clamp((y - ${f(Y0)}) / ${f(LB)}, 0., 1.);
+              float w = y <= ${f(HEAD_BOT)} ? uDef * u * u * (3. - u) * .5 : uDef * (1. + 1.5 * (y - ${f(HEAD_BOT)}) / ${f(LB)});
+              transformed.z -= w;
+            }`);
+      };
+      mat.customProgramCacheKey = () => keyName;
+    };
+
+    // ───────── matériaux ─────────
+    const pearl = new THREE.MeshPhysicalMaterial({
+      color: 0xebe4ff, metalness: 0.25, roughness: 0.24, clearcoat: 1, clearcoatRoughness: 0.06,
+      iridescence: 0.9, iridescenceIOR: 1.38, iridescenceThicknessRange: [200, 520], fog: false,
+    });
+    const lavender = new THREE.MeshPhysicalMaterial({ color: 0xb9a6ff, metalness: 0.55, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.1, fog: false });
+    const pink = new THREE.MeshPhysicalMaterial({ color: 0xffa8cf, metalness: 0.2, roughness: 0.35, clearcoat: 0.8, emissive: 0x3a1024, emissiveIntensity: 0.4, fog: false });
+    // tige : légère lueur qui s'intensifie avec la flexion
+    const shaftMat = new THREE.MeshPhysicalMaterial({ color: 0xf0e8ff, metalness: 0.3, roughness: 0.22, clearcoat: 1, emissive: 0xff7fb8, emissiveIntensity: 0, fog: false });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0xf4c7dc, roughness: 0.82, metalness: 0, fog: false });
+    const gripCore = new THREE.MeshStandardMaterial({ color: 0xb98aa8, roughness: 0.8, metalness: 0, fog: false });
+    const stringMat = new THREE.LineBasicMaterial({ color: 0xf6f1ff, transparent: true, opacity: 0.8, fog: false });
+    const massMat = new THREE.MeshPhysicalMaterial({ color: 0x9d8cff, metalness: 0.7, roughness: 0.25, clearcoat: 1, fog: false });
+    const ghostMat = new THREE.LineBasicMaterial({ color: 0xc9b8ff, transparent: true, opacity: 0, depthWrite: false, fog: false });
+    [pearl, lavender, pink, shaftMat, gripMat, gripCore, stringMat, massMat].forEach((m, i) => deform(m, 'rk-def-' + i));
+
+    // ───────── raquette procédurale ─────────
+    const swing = new THREE.Group();        // axe vertical de l'épaule, en x = ARM : rotation du swing
+    const holder = new THREE.Group();       // la main
+    const racket = new THREE.Group();       // repère raquette
+    swing.position.x = ARM; holder.position.x = -ARM; racket.position.y = PIVOT_DROP;
+    swing.add(holder); holder.add(racket); scene.add(swing);
+
+    const seg = mobile ? 0.6 : 1;
+    const eggPoint = (t: number, a = HEAD_A, b = HEAD_B, z = 0) =>
+      new THREE.Vector3(a * Math.cos(t) * (1 + EGG * Math.sin(t)), HEAD_CY + b * Math.sin(t), z);
+    const halfWidth = (y: number, a: number, b: number) => {
+      const s = (y - HEAD_CY) / b; if (Math.abs(s) >= 1) return 0;
+      return a * Math.sqrt(1 - s * s) * (1 + EGG * s);
+    };
+    class EggCurve extends THREE.Curve<THREE.Vector3> {
+      constructor(private a: number, private b: number, private z: number, private t0 = -Math.PI / 2, private t1 = Math.PI * 1.5) { super(); }
+      getPoint(u: number, target = new THREE.Vector3()) { return target.copy(eggPoint(this.t0 + (this.t1 - this.t0) * u, this.a, this.b, this.z)); }
+    }
+    const add = (g: THREE.BufferGeometry, m: THREE.Material) => { const o = new THREE.Mesh(g, m); racket.add(o); return o; };
+    const frameGeo = new THREE.TubeGeometry(new EggCurve(HEAD_A, HEAD_B, 0), Math.round(220 * seg), 0.0052, 14, true);
+    frameGeo.scale(1, 1, 1.45);
+    add(frameGeo, pearl);
+    for (const z of [0.0068, -0.0068]) add(new THREE.TubeGeometry(new EggCurve(HEAD_A, HEAD_B, z, 0.12 * Math.PI, 0.88 * Math.PI), 90, 0.0012, 6, false), pink);
+    add(new THREE.TubeGeometry(new EggCurve(HEAD_A + 0.0049, HEAD_B + 0.0049, 0, -0.38 * Math.PI, 1.38 * Math.PI), 160, 0.0015, 6, false), lavender);
+    const tBar = new THREE.CapsuleGeometry(0.0046, 0.034, 4, 12); tBar.rotateZ(Math.PI / 2); tBar.translate(0, HEAD_BOT - 0.004, 0); add(tBar, lavender);
+    const throat = new THREE.CylinderGeometry(0.0062, 0.0039, 0.03, 16); throat.translate(0, HEAD_BOT - 0.019, 0); add(throat, pearl);
+    const tRing = new THREE.TorusGeometry(0.0046, 0.0011, 8, 24); tRing.rotateX(Math.PI / 2); tRing.translate(0, HEAD_BOT - 0.031, 0); add(tRing, pink);
+    // tige fine, très subdivisée en hauteur pour pouvoir se courber
+    const shaftLen = HEAD_BOT - 0.034 - 0.222;
+    const shaft = new THREE.CylinderGeometry(0.0037, 0.0042, shaftLen, 14, 48); shaft.translate(0, (HEAD_BOT - 0.034 + 0.222) / 2, 0); add(shaft, shaftMat);
+    const cone = new THREE.CylinderGeometry(0.0044, 0.0118, 0.032, 18); cone.translate(0, 0.206, 0); add(cone, lavender);
+    const handle = new THREE.CylinderGeometry(0.0118, 0.0124, 0.19, 8); handle.translate(0, 0.095, 0); add(handle, gripCore);
+    const helixPts: THREE.Vector3[] = [];
+    const TURNS = 19, HY0 = 0.014, HY1 = 0.186;
+    for (let i = 0; i <= TURNS * 40; i++) {
+      const u = i / (TURNS * 40), a = u * TURNS * Math.PI * 2;
+      helixPts.push(new THREE.Vector3(Math.cos(a) * 0.0108, HY0 + (HY1 - HY0) * u, Math.sin(a) * 0.0108));
+    }
+    add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(helixPts), Math.round(TURNS * 40 * seg), 0.0042, 8, false), gripMat);
+    const cap = new THREE.CylinderGeometry(0.0134, 0.013, 0.011, 24); cap.translate(0, 0.0055, 0); add(cap, pearl);
+    const capRing = new THREE.TorusGeometry(0.0132, 0.0011, 8, 32); capRing.rotateX(Math.PI / 2); capRing.translate(0, 0.0115, 0); add(capRing, pink);
+    const topRing = new THREE.TorusGeometry(0.0125, 0.0012, 8, 32); topRing.rotateX(Math.PI / 2); topRing.translate(0, 0.19, 0); add(topRing, lavender);
+    // masses ajoutées en haut de la tête (aimants du TIPE), visibles selon le réglage
+    const masses = [-1, 0, 1].map((k) => {
+      const g = new THREE.CylinderGeometry(0.011, 0.011, 0.012, 20); g.rotateX(Math.PI / 2);
+      g.translate(k * 0.026, HEAD_TOP - 0.006 - Math.abs(k) * 0.008, 0);
+      const o = add(g, massMat); o.visible = false; return o;
+    });
+
+    // cordage
+    const STEP = 0.0082, SUB = 6;
+    const sv: number[] = [];
+    const seg2 = (x0: number, y0: number, x1: number, y1: number, z: number) => {
+      for (let i = 0; i < SUB; i++) {
+        const a = i / SUB, b = (i + 1) / SUB;
+        sv.push(x0 + (x1 - x0) * a, y0 + (y1 - y0) * a, z, x0 + (x1 - x0) * b, y0 + (y1 - y0) * b, z);
+      }
+    };
+    for (let y = HEAD_CY - Math.floor(IB / STEP) * STEP; y < HEAD_CY + IB; y += STEP) {
+      const w = halfWidth(y, IA, IB); if (w > 0.004) seg2(-w, y, w, y, -0.0004);
+    }
+    for (let x = -Math.floor(IA * 1.1 / STEP) * STEP; x < IA * 1.1; x += STEP) {
+      let lo = Infinity, hi = -Infinity;
+      for (let k = 0; k <= 600; k++) { const y = HEAD_CY - IB + (2 * IB * k) / 600; if (halfWidth(y, IA, IB) >= Math.abs(x)) { lo = Math.min(lo, y); hi = Math.max(hi, y); } }
+      if (hi - lo > 0.006) seg2(x, lo, x, hi, 0.0004);
+    }
+    const strGeo = new THREE.BufferGeometry(); strGeo.setAttribute('position', new THREE.Float32BufferAttribute(sv, 3));
+    racket.add(new THREE.LineSegments(strGeo, stringMat));
+
+    // fantôme : la raquette rigide (sans flexion), en fil discret, pour lire la déflexion
+    const ghostPts: number[] = [];
+    for (let i = 0; i < 96; i++) { const a = eggPoint(-Math.PI / 2 + (i / 96) * Math.PI * 2), b = eggPoint(-Math.PI / 2 + ((i + 1) / 96) * Math.PI * 2); ghostPts.push(a.x, a.y, 0, b.x, b.y, 0); }
+    ghostPts.push(0, Y0, 0, 0, HEAD_BOT, 0);
+    racket.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(ghostPts, 3)), ghostMat));
+
+    // ───────── textures procédurales ─────────
+    const glowTex = (() => {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d')!;
+      const g = x.createRadialGradient(64, 64, 0, 64, 64, 64);
+      g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.2, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const featherTex = (() => {
+      const W = 512, Hh = 160, N = 16, c = document.createElement('canvas'); c.width = W; c.height = Hh; const x = c.getContext('2d')!;
+      x.fillStyle = '#000'; x.fillRect(0, 0, W, Hh);
+      for (let i = 0; i < N; i++) {
+        const cx = (i + 0.5) * W / N, hw = W / N * 0.62;
+        x.fillStyle = '#fff'; x.beginPath();
+        x.moveTo(cx - hw * 0.5, 0); x.lineTo(cx + hw * 0.5, 0); x.lineTo(cx + hw, Hh - hw * 1.1);
+        x.quadraticCurveTo(cx + hw, Hh - 2, cx, Hh - 2); x.quadraticCurveTo(cx - hw, Hh - 2, cx - hw, Hh - hw * 1.1); x.closePath(); x.fill();
+      }
+      x.fillStyle = '#fff'; x.fillRect(0, 0, W, Hh * 0.18);
+      const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; return t;
+    })();
+
+    // ───────── volant (posé sur la trajectoire de la tête) ─────────
+    const shuttle = new THREE.Group(); shuttle.scale.setScalar(SHUTTLE_SCALE); scene.add(shuttle);
+    shuttle.add(new THREE.Mesh(new THREE.SphereGeometry(0.0125, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xfff7fb, roughness: 0.55, fog: false })));
+    const corkBase = new THREE.Mesh(new THREE.CylinderGeometry(0.0125, 0.012, 0.013, 20), new THREE.MeshStandardMaterial({ color: 0xffa8cf, roughness: 0.5, fog: false }));
+    corkBase.position.y = -0.0065; shuttle.add(corkBase);
+    const skirtGeo = new THREE.CylinderGeometry(0.0115, 0.033, 0.07, 32, 1, true); skirtGeo.translate(0, -0.013 - 0.035, 0);
+    shuttle.add(new THREE.Mesh(skirtGeo, new THREE.MeshStandardMaterial({
+      color: 0xfbf8ff, roughness: 0.75, alphaMap: featherTex, transparent: true, alphaTest: 0.3, side: THREE.DoubleSide,
+      emissive: 0x2b2340, emissiveIntensity: 0.6, fog: false,
+    })));
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.0165, 0.0008, 6, 32), new THREE.MeshBasicMaterial({ color: 0xc9b8ff, fog: false }));
+    band.rotation.x = Math.PI / 2; band.position.y = -0.031; shuttle.add(band);
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffd6ea, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    halo.scale.setScalar(0.09); shuttle.add(halo);
+
+    // ───────── traînée lumineuse du volant (ruban face caméra) ─────────
+    const trailPos = new Float32Array(TRAIL_POINTS * 2 * 3), trailCol = new Float32Array(TRAIL_POINTS * 2 * 3);
+    const trailIdx: number[] = [];
+    for (let i = 0; i < TRAIL_POINTS - 1; i++) { const a = i * 2; trailIdx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+    const trailGeo = new THREE.BufferGeometry();
+    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3).setUsage(THREE.DynamicDrawUsage));
+    trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 3).setUsage(THREE.DynamicDrawUsage));
+    trailGeo.setIndex(trailIdx);
+    const trailMesh = new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    trailMesh.frustumCulled = false; scene.add(trailMesh);
+    const trail: { p: THREE.Vector3; t: number }[] = [];
+    // arc lumineux laissé par le centre de la tête pendant le swing
+    const HEAD_TRAIL = 80, htPos = new Float32Array(HEAD_TRAIL * 3), htCol = new Float32Array(HEAD_TRAIL * 3);
+    const htGeo = new THREE.BufferGeometry();
+    htGeo.setAttribute('position', new THREE.BufferAttribute(htPos, 3).setUsage(THREE.DynamicDrawUsage));
+    htGeo.setAttribute('color', new THREE.BufferAttribute(htCol, 3).setUsage(THREE.DynamicDrawUsage));
+    const headTrail = new THREE.Line(htGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    headTrail.frustumCulled = false; scene.add(headTrail);
+    const htPts: { p: THREE.Vector3; t: number }[] = [];
+
+    const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffc2de, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    scene.add(flash);
+    let flashT = -1e9;
+
+    // ───────── décor : terrain, filet, poussière ─────────
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xc9b8ff, transparent: true, opacity: 0.22 });
+    const court: number[] = [];
+    const Lc = (x0: number, z0: number, x1: number, z1: number) => court.push(x0, FLOOR, z0, x1, FLOOR, z1);
+    const Z0 = NET_Z - 6.7, Z1 = NET_Z + 6.7;
+    for (const x of [-3.05, -2.59, 2.59, 3.05]) Lc(x, Z0, x, Z1);
+    for (const z of [Z0, Z0 + 0.76, NET_Z - 1.98, NET_Z + 1.98, Z1 - 0.76, Z1]) Lc(-3.05, z, 3.05, z);
+    Lc(0, Z0, 0, NET_Z - 1.98); Lc(0, NET_Z + 1.98, 0, Z1);
+    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(court, 3)), lineMat));
+    const net: number[] = [], NH = 0.76, NTOP = FLOOR + 1.55;
+    for (let x = -3.05; x <= 3.051; x += 0.09) net.push(x, NTOP - NH, NET_Z, x, NTOP, NET_Z);
+    for (let y = NTOP - NH; y <= NTOP + 0.001; y += 0.09) net.push(-3.05, y, NET_Z, 3.05, y, NET_Z);
+    scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(net, 3)), new THREE.LineBasicMaterial({ color: 0x9d8cff, transparent: true, opacity: 0.07 })));
+    const tape = new THREE.Mesh(new THREE.BoxGeometry(6.1, 0.03, 0.006), new THREE.MeshBasicMaterial({ color: 0xe9e2ff, transparent: true, opacity: 0.22 }));
+    tape.position.set(0, NTOP, NET_Z); scene.add(tape);
+    for (const x of [-3.05, 3.05]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 1.55, 8), new THREE.MeshBasicMaterial({ color: 0x8c7bd6, transparent: true, opacity: 0.35 })); p.position.set(x, FLOOR + 0.775, NET_Z); scene.add(p); }
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 3.2), new THREE.MeshBasicMaterial({ map: glowTex, color: 0x5b4aa8, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(0, FLOOR + 0.002, 0.2); scene.add(pool);
+    const DUST = mobile ? 110 : 240, dustPos = new Float32Array(DUST * 3), dustSeed = new Float32Array(DUST);
+    for (let i = 0; i < DUST; i++) { dustPos[i * 3] = (Math.random() - 0.5) * 6; dustPos[i * 3 + 1] = FLOOR + Math.random() * 3; dustPos[i * 3 + 2] = (Math.random() - 0.4) * 8; dustSeed[i] = Math.random() * 100; }
+    const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3).setUsage(THREE.DynamicDrawUsage));
+    scene.add(new THREE.Points(dustGeo, new THREE.PointsMaterial({ color: 0xc9b8ff, size: 0.012, map: glowTex, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })));
+
+    // ───────── paramètres choisis et grandeurs du modèle ─────────
+    const cfg = { rk: RACKETS.perfly, add: 0, tau: TAU_DEFAULT };
+    const model = () => {
+      const k = 1 / (cfg.rk.Kexp * 1e-3);                 // N/m, raideur équivalente k = 1/K = 3EI/L³
+      const m = M_EQ * cfg.rk.M + cfg.add / 1000;         // kg
+      const w0 = Math.sqrt(k / m), w = Math.PI / cfg.tau;
+      return { k, m, w0, w, wt: w / w0 };
+    };
+
+    // ───────── simulation : manche imposé, tête = masse sur ressort ─────────
+    // ẍ_T = ω₀² (x_M - x_T) + 2ζω₀ (ẋ_M - ẋ_T) ; δ = x_M - x_T
+    let simT = 0, acc = 0, timeScale = 1, slowTs = 0.05;
+    type Mode = 'idle' | 'windup' | 'hold' | 'swing' | 'follow' | 'recover';
+    const st = {
+      mode: 'idle' as Mode, t0: 0, tS: 0, xM: 0, vM: 0, xT: 0, vT: 0, from: 0, p: model(),
+      maxVM: 0, maxVT: 0, maxD: 0, hit: false, vShuttle: 0, span: 1, whip: false, done: false,
+    };
+    type Smp = { t: number; vM: number; vT: number; d: number };
+    let samples: Smp[] = [];
+    const ease = (k: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, k)));
+    const handleAt = (t: number) => {
+      const a = A_SWING, p = st.p;
+      if (st.mode === 'windup') return { x: st.from + (-a - st.from) * ease((t - st.t0) / 0.38), v: 0 };
+      if (st.mode === 'hold') return { x: -a, v: 0 };
+      if (st.mode === 'swing') { const s = t - st.tS; return { x: -a * Math.cos(p.w * s), v: a * p.w * Math.sin(p.w * s) }; }
+      if (st.mode === 'follow') return { x: a, v: 0 };
+      if (st.mode === 'recover') return { x: a * (1 - ease((t - st.t0) / 0.75)), v: 0 };
+      return { x: 0, v: 0 };
+    };
+    let shPhase: 'tee' | 'out' | 'landed' | 'gone' = 'tee';
+    const physStep = () => {
+      simT += H;
+      // machine à états
+      if (st.mode === 'windup' && simT - st.t0 >= 0.38) { st.mode = 'hold'; st.t0 = simT; }
+      if (st.mode === 'hold' && simT - st.t0 >= 0.12) startSwing();
+      if (st.mode === 'swing' && simT - st.tS >= cfg.tau) st.mode = 'follow';
+      if (st.mode === 'follow' && simT - st.tS >= st.span + 0.35) { st.mode = 'recover'; st.t0 = simT; }
+      if (st.mode === 'recover' && simT - st.t0 >= 0.75) { st.mode = 'idle'; resetShuttle(); }
+      const hM = handleAt(simT), p = st.p;
+      const prevXT = st.xT;
+      const aT = p.w0 * p.w0 * (hM.x - st.xT) + 2 * ZETA * p.w0 * (hM.v - st.vT);
+      st.vT += aT * H; st.xT += st.vT * H; st.xM = hM.x; st.vM = hM.v;
+      if (st.mode === 'swing' || st.mode === 'follow') {
+        const s = simT - st.tS;
+        if (s <= 1.5 * cfg.tau) { st.maxVM = Math.max(st.maxVM, st.vM); st.maxVT = Math.max(st.maxVT, st.vT); }
+        else if (!st.done) { st.done = true; showResult(); }
+        st.maxD = Math.max(st.maxD, Math.abs(st.xM - st.xT));
+        if (!st.whip && st.vT > st.vM && st.vM > 0.05 * A_SWING * p.w) st.whip = true;
+        // frappe : le centre de la tête passe à l'emplacement du volant
+        const xc = CONTACT_FRAC * A_SWING;
+        if (!st.hit && prevXT < xc && st.xT >= xc && shPhase === 'tee') hitShuttle(st.vT);
+      }
+    };
+    const startSwing = () => {
+      // conditions initiales du TIPE : tête au repos par rapport au manche (x_T(0) = x_M(0), ẋ_T(0) = 0)
+      st.p = model(); st.mode = 'swing'; st.tS = simT; st.xT = -A_SWING; st.vT = 0;
+      st.maxVM = st.maxVT = st.maxD = 0; st.hit = false; st.whip = false; st.done = false; st.vShuttle = 0;
+      // fenêtre montrée au ralenti : le swing, puis environ 2,5 périodes d'oscillation libre de la tige
+      st.span = cfg.tau * 1.15 + 2.5 * (2 * Math.PI / st.p.w0);
+      slowTs = Math.min(0.5, st.span / SWING_REAL);
+      samples = [];
+    };
+    const swingNow = () => {
+      if (st.mode !== 'idle') return;
+      st.mode = 'windup'; st.t0 = simT; st.from = st.xM;
+      htPts.length = 0;
+    };
+
+    // ───────── volant : sur la trajectoire de la tête, puis en vol ─────────
+    const sh = { p: new THREE.Vector3(), v: new THREE.Vector3(), axis: new THREE.Vector3(), w: new THREE.Vector3(), spin: 0 };
+    const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
+    const teeTh = (CONTACT_FRAC * A_SWING) / ARM;
+    const tangent = new THREE.Vector3(Math.sin(teeTh), 0, Math.cos(teeTh));
+    let impactReal = -1e9;
+    const resetShuttle = () => {
+      // centre de la tête quand elle atteint x_c, un peu devant le tamis
+      sh.p.set(ARM - ARM * Math.cos(teeTh), HEAD_CY + PIVOT_DROP, ARM * Math.sin(teeTh)).addScaledVector(tangent, 0.0125 * SHUTTLE_SCALE + 0.004);
+      sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); sh.axis.copy(tangent).multiplyScalar(-1); sh.spin = 0;
+      shPhase = 'tee'; shuttle.visible = true; trail.length = 0;
+    };
+    const hitShuttle = (vHead: number) => {
+      st.hit = true;
+      const mH = st.p.m;
+      const vs = (((1 + E_SHUTTLE) * mH) / (mH + M_SHUTTLE)) * Math.max(0, vHead);
+      st.vShuttle = vs;
+      sh.v.copy(tangent).multiplyScalar(vs); sh.v.y += 0.18 * vs;
+      sh.w.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
+      shPhase = 'out'; flashT = performance.now() / 1000; flash.position.copy(sh.p); impactReal = flashT;
+    };
+    const flyStep = (dt: number) => {
+      const s = sh.v.length();
+      sh.v.x += -K_DRAG * s * sh.v.x * dt; sh.v.y += (-G - K_DRAG * s * sh.v.y) * dt; sh.v.z += -K_DRAG * s * sh.v.z * dt;
+      sh.p.addScaledVector(sh.v, dt);
+      if (s > 0.05) {
+        tmpA.copy(sh.v).normalize(); tmpB.crossVectors(sh.axis, tmpA);
+        sh.w.addScaledVector(tmpB, FLIP_K * s * s * dt).multiplyScalar(Math.max(0, 1 - Math.sqrt(FLIP_K) * s * dt));
+        tmpB.crossVectors(sh.w, sh.axis); sh.axis.addScaledVector(tmpB, dt).normalize();
+        sh.spin += s * SPINK * dt;
+      }
+      if (sh.p.y < FLOOR + 0.02) { sh.p.y = FLOOR + 0.02; sh.v.set(0, 0, 0); sh.w.set(0, 0, 0); sh.axis.set(0.3, 0.25, 0.9).normalize(); shPhase = 'landed'; }
+      if (sh.p.lengthSq() > 900) { shPhase = 'gone'; shuttle.visible = false; }
+      const last = trail[trail.length - 1];
+      if (!last || last.p.distanceToSquared(sh.p) > 0.02 * 0.02) { trail.push({ p: sh.p.clone(), t: performance.now() / 1000 }); if (trail.length > TRAIL_POINTS) trail.shift(); }
+    };
+    const step = () => { physStep(); if (shPhase === 'out') flyStep(H); };
+
+    // ───────── HUD ─────────
+    const q = (s: string) => root.querySelector<HTMLElement>(s);
+    const slowRow = q('[data-slowrow]'), slowEl = q('[data-slow]'), tcEl = q('[data-tc]');
+    const verdictEl = q('[data-verdict]'), tauIn = q('[data-tau]') as HTMLInputElement | null, tauV = q('[data-tauv]');
+    const setTxt = (s: string, v: string) => { const el = q(s); if (el) el.textContent = v; };
+    const bi = (a: string, b: string) => `<span data-l="fr">${a}</span><span data-l="en">${b}</span>`;
+    const dec = (v: number, d: number) => [v.toFixed(d).replace('.', ','), v.toFixed(d)];
+    const meas = () => { const r = cfg.rk.meas[cfg.add]; return r ? { lo: Math.min(...r), hi: Math.max(...r) } : null; };
+    // échelle logarithmique du curseur τ₁
+    const tauFromIn = (v: number) => TAU_MIN * Math.pow(TAU_MAX / TAU_MIN, v / 1000);
+    const inFromTau = (t: number) => Math.round((1000 * Math.log(t / TAU_MIN)) / Math.log(TAU_MAX / TAU_MIN));
+    if (tauIn) tauIn.value = String(inFromTau(TAU_DEFAULT));
+    let still = () => {};
+    const refreshParams = () => {
+      const p = model();
+      setTxt('[data-k]', cfg.rk.Kexp.toFixed(1)); setTxt('[data-kth]', cfg.rk.Kth.toFixed(1)); setTxt('[data-e]', String(cfg.rk.E));
+      setTxt('[data-w0]', p.w0.toFixed(1)); setTxt('[data-wt]', p.wt.toFixed(2));
+      if (tauV) tauV.textContent = `${Math.round(cfg.tau * 1000)} ms`;
+      masses.forEach((o, i) => { o.visible = cfg.add >= [40, 90, 180][i]; });
+      const m = meas(), mEl = q('[data-meas]');
+      if (mEl) mEl.innerHTML = m ? bi(`${dec(m.lo, 2)[0]} à ${dec(m.hi, 2)[0]}`, `${dec(m.lo, 2)[1]} to ${dec(m.hi, 2)[1]}`) : bi('non mesuré', 'not measured');
+      drawGain();
+    };
+    const segBind = (sel: string, on: (v: string) => void) => {
+      const box = q(sel); if (!box) return;
+      box.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.addEventListener('click', () => {
+        box.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+        on(b.dataset.v!); refreshParams(); if (reduced) still();
+      }));
+    };
+    segBind('[data-rk]', (v) => { cfg.rk = RACKETS[v]; });
+    segBind('[data-mass]', (v) => { cfg.add = +v; });
+    tauIn?.addEventListener('input', () => { cfg.tau = tauFromIn(+tauIn.value); refreshParams(); if (reduced) still(); });
+
+    function showResult() {
+      const p = st.p, ratio = st.maxVT / Math.max(1e-6, st.maxVM), gain = (ratio - 1) * 100;
+      setTxt('[data-dmax]', `${(st.maxD * 1000).toFixed(0)} mm`);
+      setTxt('[data-vm]', `${st.maxVM.toFixed(1)} m/s`);
+      setTxt('[data-vt]', `${st.maxVT.toFixed(1)} m/s`);
+      setTxt('[data-gainv]', `${gain >= 0 ? '+' : '−'}${Math.abs(gain).toFixed(0)} %`);
+      setTxt('[data-vs]', st.vShuttle ? `${(st.vShuttle * 3.6).toFixed(0)} km/h` : '–');
+      if (!verdictEl) return;
+      const [rf, re] = dec(ratio, 2), [wf, we] = dec(p.wt, 2), m = meas();
+      const mf = m ? ` Mesuré au TIPE dans cette configuration : ${dec(m.lo, 2)[0]} à ${dec(m.hi, 2)[0]}.` : '';
+      const me = m ? ` Measured in my TIPE for this setup: ${dec(m.lo, 2)[1]} to ${dec(m.hi, 2)[1]}.` : '';
+      let a: string, b: string;
+      if (p.wt < 0.3) {
+        a = `<b>Swing lent (ω̃ = ${wf})</b> : la tige suit presque le manche, la tête ne va que ${rf} fois plus vite.`;
+        b = `<b>Slow swing (ω̃ = ${we})</b>: the shaft almost follows the handle, the head is only ${re} times faster.`;
+      } else if (p.wt <= 1.15) {
+        a = `<b>Effet fouet (ω̃ = ${wf})</b> : la tête atteint ${rf} fois la vitesse du manche (optimum théorique : 1,77 vers ω̃ ≈ 0,6).`;
+        b = `<b>Whip effect (ω̃ = ${we})</b>: the head reaches ${re} times the handle speed (theoretical optimum: 1.77 near ω̃ ≈ 0.6).`;
+      } else if (ratio >= 1) {
+        a = `<b>Au-delà de l’optimum (ω̃ = ${wf})</b> : la tige est trop souple pour ce swing, le gain retombe (${rf} fois la vitesse du manche).`;
+        b = `<b>Past the optimum (ω̃ = ${we})</b>: the shaft is too soft for this swing, the gain drops (${re} times the handle speed).`;
+      } else {
+        a = `<b>Swing trop rapide pour cette tige (ω̃ = ${wf})</b> : la tête n’a pas le temps de rattraper le manche (${rf} fois).`;
+        b = `<b>Swing too fast for this shaft (ω̃ = ${we})</b>: the head cannot catch up with the handle (${re} times).`;
+      }
+      verdictEl.innerHTML = bi(a + mf, b + me);
+    }
+
+    // oscilloscope : vitesses du manche et de la tête (haut), déflexion δ(t) (bas)
+    const scope = q('[data-scope]') as HTMLCanvasElement, sctx = scope.getContext('2d')!;
+    const fit = (c: HTMLCanvasElement) => {
+      const dpr = Math.min(devicePixelRatio || 1, 2), W = Math.round(c.clientWidth * dpr), Hh = Math.round(c.clientHeight * dpr);
+      if (W && Hh && (c.width !== W || c.height !== Hh)) { c.width = W; c.height = Hh; }
+      return { dpr, W, Hh };
+    };
+    const drawScope = () => {
+      const { dpr, W, Hh } = fit(scope); if (!W || !Hh) return;
+      sctx.clearRect(0, 0, W, Hh);
+      sctx.lineWidth = 1; sctx.strokeStyle = 'rgba(201,184,255,.08)'; sctx.beginPath();
+      for (let i = 1; i < 8; i++) { const x = Math.round((W * i) / 8) + 0.5; sctx.moveTo(x, 0); sctx.lineTo(x, Hh); }
+      sctx.stroke();
+      const base = Hh * 0.6, dTop = base + 4 * dpr;
+      sctx.strokeStyle = 'rgba(201,184,255,.22)'; sctx.beginPath(); sctx.moveTo(0, Math.round(base) + 0.5); sctx.lineTo(W, Math.round(base) + 0.5); sctx.stroke();
+      if (samples.length < 2) return;
+      const t0 = st.tS, span = st.span || 1;
+      const X = (t: number) => ((t - t0) / span) * W;
+      const vmax = Math.max(0.1, A_SWING * st.p.w * 1.85), dmax = A_SWING * 1.8;
+      sctx.fillStyle = 'rgba(201,184,255,.3)'; sctx.beginPath(); sctx.moveTo(X(samples[0].t), dTop);
+      for (const s of samples) sctx.lineTo(X(s.t), dTop + Math.min(1, Math.abs(s.d) / dmax) * (Hh - dTop - 1 * dpr));
+      sctx.lineTo(X(samples[samples.length - 1].t), dTop); sctx.closePath(); sctx.fill();
+      const line = (k: 'vM' | 'vT', col: string) => {
+        sctx.lineWidth = 1.6 * dpr; sctx.strokeStyle = col; sctx.shadowColor = col; sctx.shadowBlur = 5 * dpr; sctx.beginPath();
+        samples.forEach((s, i) => { const x = X(s.t), y = base - Math.max(-0.15, s[k] / vmax) * (base - 3 * dpr); i ? sctx.lineTo(x, y) : sctx.moveTo(x, y); });
+        sctx.stroke(); sctx.shadowBlur = 0;
+      };
+      line('vM', '#ffa8cf'); line('vT', '#8fd8ff');
+    };
+    // courbe du gain v_T / v_M en fonction de ω̃ (même protocole que la simulation)
+    const gainCurve: { wt: number; r: number }[] = [];
+    for (let i = 0; i <= 70; i++) {
+      const wt = Math.pow(10, -1.3 + (2.3 * i) / 70), w0 = 1 / wt, dt = 0.004 * Math.min(1, wt);
+      let x = -1, v = 0, mx = 0;
+      for (let t = 0; t < 1.5 * Math.PI; t += dt) {
+        const xm = t < Math.PI ? -Math.cos(t) : 1, vm = t < Math.PI ? Math.sin(t) : 0;
+        v += (w0 * w0 * (xm - x) + 2 * ZETA * w0 * (vm - v)) * dt; x += v * dt; mx = Math.max(mx, v);
+      }
+      gainCurve.push({ wt, r: mx });
+    }
+    const gainAt = (wt: number) => { let r = gainCurve[0].r; for (const g of gainCurve) if (g.wt <= wt) r = g.r; return r; };
+    const gainC = q('[data-gain]') as HTMLCanvasElement, gctx = gainC.getContext('2d')!;
+    function drawGain() {
+      const { dpr, W, Hh } = fit(gainC); if (!W || !Hh) return;
+      gctx.clearRect(0, 0, W, Hh);
+      const X = (wt: number) => ((Math.log10(wt) + 1.3) / 2.3) * W, Y = (r: number) => Hh - 3 * dpr - (r / 2) * (Hh - 8 * dpr);
+      gctx.lineWidth = 1; gctx.strokeStyle = 'rgba(201,184,255,.12)'; gctx.beginPath();
+      for (const d of [0.1, 1, 10]) { const x = Math.round(X(d)) + 0.5; gctx.moveTo(x, 0); gctx.lineTo(x, Hh); }
+      gctx.stroke();
+      gctx.setLineDash([3 * dpr, 3 * dpr]); gctx.strokeStyle = 'rgba(201,184,255,.35)'; gctx.beginPath(); gctx.moveTo(0, Math.round(Y(1)) + 0.5); gctx.lineTo(W, Math.round(Y(1)) + 0.5); gctx.stroke(); gctx.setLineDash([]);
+      // mesures du TIPE pour la configuration courante : bande rose sur le bord gauche
+      const m = meas();
+      if (m) { gctx.fillStyle = 'rgba(255,168,207,.55)'; gctx.fillRect(0, Y(m.hi), 3 * dpr, Math.max(2 * dpr, Y(m.lo) - Y(m.hi))); }
+      gctx.lineWidth = 1.5 * dpr; gctx.strokeStyle = '#c9b8ff'; gctx.beginPath();
+      gainCurve.forEach((g, i) => { const x = X(g.wt), y = Y(g.r); i ? gctx.lineTo(x, y) : gctx.moveTo(x, y); }); gctx.stroke();
+      gctx.fillStyle = 'rgba(169,163,184,.9)'; gctx.font = `${8.5 * dpr}px ui-monospace, Menlo, Consolas, monospace`;
+      gctx.fillText(document.documentElement.dataset.lang === 'en' ? '1.77' : '1,77', X(STUDY_WT) - 9 * dpr, Y(STUDY_PEAK) - 4 * dpr);
+      gctx.fillText('1', W - 8 * dpr, Y(1) - 3 * dpr);
+      const wt = Math.min(10, Math.max(0.05, model().wt));
+      gctx.fillStyle = '#ffa8cf'; gctx.shadowColor = '#ffa8cf'; gctx.shadowBlur = 6 * dpr;
+      gctx.beginPath(); gctx.arc(X(wt), Y(gainAt(wt)), 3.2 * dpr, 0, Math.PI * 2); gctx.fill(); gctx.shadowBlur = 0;
+    }
+    new MutationObserver(() => drawGain()).observe(document.documentElement, { attributes: true, attributeFilter: ['data-lang'] });
+
+    // encart d'explication
+    const introEl = q('[data-intro]'), helpEl = q('[data-help]');
+    let introOpen = true;
+    const setIntro = (open: boolean, focus = true) => {
+      introOpen = open;
+      introEl?.classList.toggle('closed', !open); introEl?.setAttribute('aria-hidden', String(!open));
+      helpEl?.classList.toggle('hide', open); helpEl?.setAttribute('aria-expanded', String(open));
+      if (open && focus) (introEl?.querySelector('[data-ok]') as HTMLElement | null)?.focus({ preventScroll: true });
+    };
+    setIntro(true, false);
+    q('[data-close]')?.addEventListener('click', () => setIntro(false));
+    q('[data-ok]')?.addEventListener('click', () => setIntro(false));
+    helpEl?.addEventListener('click', () => setIntro(true));
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && introOpen) setIntro(false); });
+    // repère d'action
+    const cueEl = q('[data-cue]'), cueTxt = q('[data-cuetxt]');
+    const touch = matchMedia('(pointer: coarse)').matches;
+    let cueKey = '';
+    const setCue = (key: string, cls: string, a = '', b = '') => {
+      if (!cueEl || !cueTxt || key === cueKey) return;
+      cueKey = key; cueEl.className = 'cue' + (key ? ' on ' + cls : '');
+      if (a) cueTxt.innerHTML = bi(a, b);
+    };
+
+    // ───────── caméra : orbite douce avec inertie ─────────
+    const base = new THREE.Vector3(0, 0.47, 0.05), camTarget = new THREE.Vector3();
+    const follow = { w: 0, off: new THREE.Vector3(), want: new THREE.Vector3() };
+    const orbit = { az: Math.PI + 1.12, el: 0.16, vaz: 0, vel: 0 };
+    const placeCamera = () => {
+      const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+      const dist = 1.9 * (aspect < 1 ? 1 + (1 - aspect) * 1.6 : 1) * (1 + FOLLOW_ZOOM * follow.w);
+      const k = 0.16 * Math.min(1, Math.max(0, (aspect - 0.8) / 0.6));
+      camTarget.set(base.x - Math.cos(orbit.az) * k, base.y - (aspect < 1 ? 0.2 : 0), base.z + Math.sin(orbit.az) * k);
+      camera.position.set(
+        camTarget.x + dist * Math.sin(orbit.az) * Math.cos(orbit.el),
+        camTarget.y + dist * Math.sin(orbit.el),
+        camTarget.z + dist * Math.cos(orbit.az) * Math.cos(orbit.el),
+      );
+      camera.lookAt(camTarget.addScaledVector(follow.off, FOLLOW_LOOK * follow.w * (aspect < 1 ? 0.6 : 1)));
+    };
+    const resize = () => {
+      const dpr = Math.min(devicePixelRatio || 1, mobile ? 1.5 : 2);
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (!w || !h) return false;
+      renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+      camera.aspect = w / h; camera.updateProjectionMatrix();
+      return true;
+    };
+
+    // ───────── rendu d'une image ─────────
+    const qSpin = new THREE.Quaternion(), Yv = new THREE.Vector3(0, 1, 0), camTmp = new THREE.Vector3(), headW = new THREE.Vector3();
+    const syncScene = (now: number) => {
+      swing.rotation.y = st.xM / ARM;
+      const d = st.xM - st.xT, vis = VIS_MAX * Math.tanh(d / VIS_MAX);
+      U.uDef.value = vis / HEAD_K;
+      shaftMat.emissiveIntensity = Math.min(1.4, Math.abs(d) / 0.06);
+      ghostMat.opacity = Math.min(0.45, Math.abs(d) / 0.03);
+      racket.updateWorldMatrix(true, false);
+      headW.set(0, HEAD_CY, -vis); racket.localToWorld(headW);
+      const swinging = st.mode === 'swing' || st.mode === 'follow';
+      if (swinging) { const l = htPts[htPts.length - 1]; if (!l || l.p.distanceToSquared(headW) > 1e-5) { htPts.push({ p: headW.clone(), t: now }); if (htPts.length > HEAD_TRAIL) htPts.shift(); } }
+      const hn = htPts.length;
+      for (let i = 0; i < HEAD_TRAIL; i++) {
+        const o = i * 3, pt = htPts[Math.min(i, hn - 1)];
+        if (!pt) { htPos[o] = htPos[o + 1] = htPos[o + 2] = 0; htCol[o] = htCol[o + 1] = htCol[o + 2] = 0; continue; }
+        htPos[o] = pt.p.x; htPos[o + 1] = pt.p.y; htPos[o + 2] = pt.p.z;
+        const al = i < hn ? (reduced ? 0.8 : Math.exp(-(now - pt.t) / 2.5)) * ((i + 1) / hn) : 0;
+        htCol[o] = 0.56 * al; htCol[o + 1] = 0.85 * al; htCol[o + 2] = 1 * al;
+      }
+      htGeo.attributes.position.needsUpdate = true; htGeo.attributes.color.needsUpdate = true;
+      if (shuttle.visible) {
+        shuttle.position.copy(sh.p);
+        shuttle.quaternion.setFromUnitVectors(Yv, sh.axis).multiply(qSpin.setFromAxisAngle(Yv, sh.spin));
+        halo.scale.setScalar(Math.max(0.09, camera.position.distanceTo(sh.p) * 0.03));
+        halo.material.opacity = shPhase === 'tee' && !reduced ? 0.42 + 0.12 * Math.sin(now * 4) : 0.35;
+      }
+      camTmp.copy(camera.position);
+      const n = trail.length;
+      for (let i = 0; i < TRAIL_POINTS; i++) {
+        const j = Math.min(i, n - 1), o = i * 6;
+        if (n < 2 || i >= n) { for (let k = 0; k < 6; k++) { trailPos[o + k] = n ? trail[n - 1].p.getComponent(k % 3) : 0; trailCol[o + k] = 0; } continue; }
+        const p = trail[j].p, pa = trail[Math.max(0, j - 1)].p, pb = trail[Math.min(n - 1, j + 1)].p;
+        tmpA.subVectors(pb, pa); tmpB.subVectors(camTmp, p); tmpA.cross(tmpB).normalize();
+        const u = (j + 1) / n, wdt = 0.0048 * Math.pow(u, 1.5) * SHUTTLE_SCALE;
+        const al = u * u * (reduced ? 1 : Math.exp(-(now - trail[j].t) / 2));
+        trailPos[o] = p.x + tmpA.x * wdt; trailPos[o + 1] = p.y + tmpA.y * wdt; trailPos[o + 2] = p.z + tmpA.z * wdt;
+        trailPos[o + 3] = p.x - tmpA.x * wdt; trailPos[o + 4] = p.y - tmpA.y * wdt; trailPos[o + 5] = p.z - tmpA.z * wdt;
+        for (let k = 0; k < 2; k++) { trailCol[o + k * 3] = 0.85 * al; trailCol[o + k * 3 + 1] = 0.42 * al; trailCol[o + k * 3 + 2] = 0.62 * al; }
+      }
+      trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.color.needsUpdate = true;
+      const fa = now - flashT;
+      flash.material.opacity = Math.max(0, 1 - fa / 0.9) * 0.9;
+      flash.scale.setScalar(0.08 + Math.min(1, fa / 0.9) * 0.22);
+    };
+    const render = () => { placeCamera(); renderer.render(scene, camera); };
+
+    resize(); placeCamera(); resetShuttle(); refreshParams();
+    (window as any).__rk = { st, cfg, model, get simT() { return simT; }, get ts() { return timeScale; }, get shPhase() { return shPhase; }, sh, camera };   // DEBUG
+
+    // ───────── image fixe (prefers-reduced-motion) ─────────
+    // on joue un swing complet sans l'afficher, puis on fige la scène à la déflexion maximale
+    if (reduced) {
+      still = () => {
+        st.mode = 'idle'; st.xM = st.xT = st.vT = 0; simT = 0; resetShuttle();
+        swingNow(); for (let i = 0; i < 40000 && st.mode !== 'swing'; i++) physStep();
+        let best = -1, keep = { xM: 0, xT: 0 }, k = 0;
+        while ((st.mode === 'swing' || st.mode === 'follow') && simT - st.tS < st.span && k++ < 400000) {
+          physStep(); if (shPhase === 'out') flyStep(H);
+          if (k % 8 === 0) samples.push({ t: simT, vM: st.vM, vT: st.vT, d: st.xM - st.xT });
+          const d = Math.abs(st.xM - st.xT);
+          if (d > best && simT - st.tS < cfg.tau) { best = d; keep = { xM: st.xM, xT: st.xT }; }
+        }
+        if (!st.done) showResult();
+        st.xM = keep.xM; st.xT = keep.xT; resetShuttle(); shuttle.visible = false; htPts.length = 0; flashT = -1e9;   // image centrée sur la tige courbée
+        resize(); syncScene(performance.now() / 1000); render(); drawScope(); drawGain();
+        if (cueEl) cueEl.className = 'cue';
+      };
+      still();
+      new ResizeObserver(() => still()).observe(root);
+      return;
+    }
+
+    // ───────── pointeur : glisser = orbite, clic ou geste rapide = swing ─────────
+    let down: null | { id: number; x: number; y: number; t: number; moved: number; hist: { x: number; y: number; t: number }[] } = null;
+    root.addEventListener('pointerdown', (e) => {
+      if ((e.target as HTMLElement).closest('a, button, input, label, .intro, .panel')) return;
+      if (introOpen) setIntro(false);   // un clic dans la scène referme l'encart et compte comme une action
+      down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: 0, hist: [{ x: e.clientX, y: e.clientY, t: performance.now() }] };
+      orbit.vaz = orbit.vel = 0;
+      try { root.setPointerCapture(e.pointerId); } catch {}
+    });
+    root.addEventListener('pointermove', (e) => {
+      if (!down || e.pointerId !== down.id) return;
+      const last = down.hist[down.hist.length - 1], dx = e.clientX - last.x, dy = e.clientY - last.y;
+      down.moved += Math.hypot(dx, dy);
+      const now = performance.now();
+      down.hist.push({ x: e.clientX, y: e.clientY, t: now }); while (down.hist.length > 2 && now - down.hist[0].t > 120) down.hist.shift();
+      orbit.az -= dx * 0.006; orbit.el = Math.min(0.85, Math.max(-0.2, orbit.el + dy * 0.004));
+    });
+    const up = (e: PointerEvent) => {
+      if (!down || e.pointerId !== down.id) return;
+      const now = performance.now(), dur = now - down.t, h0 = down.hist[0], h1 = down.hist[down.hist.length - 1];
+      const dt = Math.max(16, h1.t - h0.t), vx = (h1.x - h0.x) / dt, vy = (h1.y - h0.y) / dt, speed = Math.hypot(vx, vy);
+      if (down.moved < 7 && dur < 450) swingNow();
+      else if (dur < 320 && speed > FLICK_SPEED) { swingNow(); orbit.vaz = orbit.vel = 0; }
+      else if (now - h1.t < 60) { orbit.vaz = -vx * 0.006 * 16; orbit.vel = vy * 0.004 * 16; }
+      down = null;
+    };
+    root.addEventListener('pointerup', up);
+    root.addEventListener('pointercancel', (e) => { if (down && e.pointerId === down.id) down = null; });
+    addEventListener('keydown', (e) => {
+      if (!visible || (e.code !== 'Space' && e.code !== 'Enter') || (e.target as HTMLElement)?.closest?.('a, button, input, textarea')) return;
+      e.preventDefault(); swingNow();
+    });
+
+    // ───────── boucle ─────────
+    let raf = 0, last = performance.now(), visible = true, lastSample = -1;
+    const pad = (n: number, l = 2) => String(Math.floor(n)).padStart(l, '0');
+    const loop = () => {
+      raf = 0;
+      if (!visible || document.hidden) return;
+      const nowMs = performance.now(), now = nowMs / 1000, realDt = Math.max(0, Math.min((nowMs - last) / 1000, 0.05)); last = nowMs;
+      // échelle de temps : ralenti pendant le swing et l'oscillation de la tige
+      const inSwing = (st.mode === 'swing' || st.mode === 'follow') && simT - st.tS < st.span;
+      const tsTarget = inSwing || st.mode === 'hold' ? slowTs : 1;
+      timeScale += (tsTarget - timeScale) * (1 - Math.exp(-realDt * (tsTarget < timeScale ? 14 : 2.5)));
+      acc += realDt * timeScale;
+      let n = 0;
+      while (acc >= H && n < 400) {
+        step(); acc -= H; n++;
+        if ((st.mode === 'swing' || st.mode === 'follow') && simT - st.tS <= st.span && simT - lastSample > st.span / 320) {
+          samples.push({ t: simT, vM: st.vM, vT: st.vT, d: st.xM - st.xT }); lastSample = simT;
+        }
+      }
+      if (n >= 400) acc = 0;
+      if (!down) {
+        const k = Math.pow(ORBIT_INERTIA, realDt * 60);
+        orbit.az += orbit.vaz * realDt * 60 / 16; orbit.el = Math.min(0.85, Math.max(-0.2, orbit.el + orbit.vel * realDt * 60 / 16));
+        orbit.vaz *= k; orbit.vel *= k;
+      }
+      // cadrage : après la frappe, la caméra suit un peu le volant
+      const fs = now - impactReal;
+      const fw = shPhase === 'out' || shPhase === 'landed' ? Math.min(1, fs / 0.6) * (1 - Math.min(1, Math.max(0, (fs - 4.5) / 1.2))) : 0;
+      if (shPhase === 'out') { follow.want.copy(sh.p).sub(base); if (follow.want.length() > 4) follow.want.setLength(4); }
+      follow.off.lerp(follow.want, 1 - Math.exp(-realDt * 6));
+      follow.w += (fw - follow.w) * (1 - Math.exp(-realDt * 4));
+      const dp = dustGeo.attributes.position.array as Float32Array;
+      for (let i = 0; i < DUST; i++) { dp[i * 3 + 1] += Math.sin(now * 0.3 + dustSeed[i]) * 0.0004; dp[i * 3] += Math.cos(now * 0.2 + dustSeed[i]) * 0.0003; }
+      dustGeo.attributes.position.needsUpdate = true;
+      syncScene(now);
+      render();
+      drawScope();
+      // repère d'action
+      const sw = st.mode === 'swing' || st.mode === 'follow', s = simT - st.tS;
+      if (st.mode === 'idle') setCue('idle', '', touch ? 'Touchez pour lancer un swing' : 'Cliquez pour lancer un swing', touch ? 'Tap to swing' : 'Click to swing');
+      else if (st.mode === 'windup' || st.mode === 'hold') setCue('arm', 'calm', 'Armé…', 'Winding up…');
+      else if (sw && !st.whip && s < 1.5 * cfg.tau) setCue('lag', 'hot', 'La tête prend du retard : la tige se courbe', 'The head lags: the shaft bends');
+      else if (sw && s < 1.5 * cfg.tau) setCue('whip', 'hot', 'Effet fouet : la tête dépasse le manche', 'Whip: the head overtakes the handle');
+      else if (sw) { const [ff, fe] = dec(st.p.w0 / (2 * Math.PI), 1); setCue('osc' + ff, 'calm', `La tige oscille à f₀ = ${ff} Hz puis s’amortit`, `The shaft rings at f₀ = ${fe} Hz, then settles`); }
+      else setCue('rec', 'calm', 'Retour', 'Reset');
+      slowRow?.classList.toggle('on', timeScale < 0.95);
+      if (slowEl) slowEl.textContent = `×${(1 / Math.max(1e-3, timeScale)).toFixed(0)}`;
+      if (tcEl) tcEl.textContent = `${pad(simT / 60)}:${pad(simT % 60)}:${pad((simT % 1) * 1000, 3)}`;
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } };
+    new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible) start(); }).observe(root);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+    new ResizeObserver(() => { resize(); drawGain(); }).observe(root);
+    start();
+  }
+</script>

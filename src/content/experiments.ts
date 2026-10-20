@@ -7,7 +7,21 @@ export interface Experiment {
   descriptionEn: string;
   tags: string[];
   copy?: boolean;         // false : pas de titre "Code Data Curiosity" par-dessus (le hero a déjà son texte)
+  stars: 1 | 2 | 3;       // préférence de Ferdi, tri par défaut sur la page du lab
+  category: CategoryId;   // couleur du cadre et badge sur la carte
+  group?: 'brush-reveal' | 'galerie'; // les entrées d'un même groupe partagent une carte carrousel
+  thumb?: string;         // aperçu (chemin dans public/), sinon carte texte
 }
+
+export type CategoryId = 'revelation' | 'generatif' | 'webgl' | 'simulation';
+
+// Catégories du lab, dans l'ordre d'affichage (barre de filtres et tri par catégorie)
+export const categories: Record<CategoryId, { label: string; labelEn: string; color: string }> = {
+  revelation: { label: 'Révélation d’image', labelEn: 'Image reveal', color: '#ffa8cf' },
+  generatif: { label: 'Génératif', labelEn: 'Generative', color: '#8fe6d0' },
+  webgl: { label: 'WebGL', labelEn: 'WebGL', color: '#8ccfff' },
+  simulation: { label: 'Simulation et algorithmes', labelEn: 'Simulation & algorithms', color: '#ffd29a' },
+};
 
 // Ajoute une expérience : 1) une ligne ici, 2) une entrée dans `demos` de src/pages/lab/[slug].astro
 export const experiments: Experiment[] = [
@@ -19,6 +33,10 @@ export const experiments: Experiment[] = [
     description: 'Un pinceau procédural révèle une seconde image sous la première. Canvas, spline de Catmull-Rom, traînée qui rétrécit.',
     descriptionEn: 'A procedural brush reveals a second image beneath the first. Canvas, Catmull-Rom spline, shrinking trail.',
     tags: ['canvas', 'interaction', 'ia-images'],
+    stars: 3,
+    category: 'revelation',
+    group: 'brush-reveal',
+    thumb: '/images/lab/thumbs/brush-reveal.webp',
   },
   {
     slug: 'foret',
@@ -28,6 +46,77 @@ export const experiments: Experiment[] = [
     description: 'Brush reveal sur deux images alignées : une forêt morte et ses ruines, et la même forêt vivante, en fleurs et baignée de lumière. Le curseur ramène la vie.',
     descriptionEn: 'Brush reveal on two aligned images: a dead forest with its ruins, and the same forest alive, in bloom and bathed in light. The cursor brings it back to life.',
     tags: ['canvas', 'interaction', 'ia-images'],
+    stars: 3,
+    category: 'revelation',
+    group: 'brush-reveal',
+    thumb: '/images/lab/thumbs/foret.webp',
+  },
+  {
+    slug: 'nom-particules',
+    title: 'Devise en particules',
+    titleEn: 'Motto in particles',
+    date: '2026-10',
+    description: 'Une devise latine (Selectio naturalis, Per aspera ad astra, Carpe diem…) formée de plus de 20 000 particules (WebGL2, mélange additif) en dégradé violet -> bleu. La souris les repousse et les fait tourbillonner, un clic fait exploser les lettres, puis le texte se reconstruit grâce à des ressorts amortis. Des boutons sous le texte changent de devise.',
+    descriptionEn: 'A Latin motto (Selectio naturalis, Per aspera ad astra, Carpe diem…) made of over 20,000 particles (WebGL2, additive blending) in a violet to blue gradient. The mouse pushes them away and swirls them, a click blows the letters apart, then the text rebuilds itself with damped springs. Buttons below the text switch mottos.',
+    tags: ['webgl', 'typographie', 'physique'],
+    copy: false,
+    stars: 3,
+    category: 'webgl',
+    thumb: '/images/lab/thumbs/nom-particules.webp',
+  },
+  {
+    slug: 'galerie-3d',
+    title: 'Galerie 3D',
+    titleEn: '3D gallery',
+    date: '2026-10',
+    description: 'On est au centre d’une bulle : mes photos l’entourent sur une sphère brumeuse, au milieu des poussières lumineuses. Glisser pour tourner à 360°, molette ou pincer pour zoomer, un clic vole vers une photo et l’ouvre en grand. three.js, textures chargées selon le regard.',
+    descriptionEn: 'You stand at the centre of a bubble: my photos surround you on a misty sphere, among glowing dust. Drag to look around in 360°, scroll or pinch to zoom, a click flies to a photo and opens it full size. three.js, textures streamed where you look.',
+    tags: ['webgl', 'photo', 'interaction'],
+    copy: false,
+    stars: 2,
+    group: 'galerie',
+    category: 'webgl',
+    thumb: '/images/lab/thumbs/galerie-3d.webp',
+  },
+  {
+    slug: 'zoom-infini',
+    title: 'Zoom infini',
+    titleEn: 'Infinite zoom',
+    date: '2026-10',
+    description: 'La première version de la galerie : mes photos flottent le long d’un couloir en spirale, dans un espace sombre et brumeux. Molette ou glisser pour avancer sans fin, un clic vole vers une photo et l’ouvre en grand. three.js, textures chargées au fil de la profondeur.',
+    descriptionEn: 'The first version of the gallery: my photos float along a spiral corridor in a dark, misty space. Scroll or swipe to travel endlessly, a click flies to a photo and opens it full size. three.js, textures streamed as you go deeper.',
+    tags: ['webgl', 'photo', 'interaction'],
+    copy: false,
+    stars: 2,
+    group: 'galerie',
+    category: 'webgl',
+    thumb: '/images/lab/thumbs/zoom-infini.webp',
+  },
+  {
+    slug: 'mcts-fire',
+    title: 'Monte Carlo en direct',
+    titleEn: 'Live Monte Carlo',
+    date: '2026-10',
+    description: 'Une grille de FIRE!, mon jeu, et l’arbre d’un Single-Player MCTS qui grandit en direct pendant qu’il cherche le minimum de tours pour tout brûler. Puis l’IA joue sa meilleure séquence. Survolez l’arbre, ou jouez vous-même pour la battre.',
+    descriptionEn: 'A FIRE! board, my game, next to a Single-Player MCTS tree growing live as it searches for the fewest turns to burn everything. Then the AI plays its best sequence. Hover the tree, or play yourself to try to beat it.',
+    tags: ['canvas', 'ia', 'algorithmes'],
+    copy: false,
+    stars: 1,
+    category: 'simulation',
+    thumb: '/images/lab/thumbs/mcts-fire.webp',
+  },
+  {
+    slug: 'raquette',
+    title: 'Raquette',
+    titleEn: 'Racket',
+    date: '2026-10',
+    description: 'Mon TIPE sur la déflexion de la raquette de badminton, en 3D (three.js). La tige est une poutre encastrée (δ = FL³/3EI) : pendant le swing, la tête prend du retard puis fouette et dépasse la vitesse du manche. On compare deux vraies raquettes (Perfly Lite carbone, Babolat acier), on ajoute de la masse en tête et on règle la durée du swing, avec mes mesures en regard.',
+    descriptionEn: 'My research project on badminton racket deflection, in 3D (three.js). The shaft is a cantilever beam (δ = FL³/3EI): during the swing the head lags, then whips past the handle speed. Compare two real rackets (carbon Perfly Lite, steel Babolat), add mass to the head and set the swing time, next to my measured values.',
+    tags: ['three.js', 'physique', 'TIPE'],
+    copy: false,
+    stars: 1,
+    category: 'simulation',
+    thumb: '/images/lab/thumbs/raquette.webp',
   },
   {
     slug: 'concept',
@@ -38,6 +127,9 @@ export const experiments: Experiment[] = [
     descriptionEn: 'A real fluid simulation (Navier-Stokes in WebGL) in blue-violet and cyan: the mouse stirs the ink, and the word CONCEPT acts as a brighter window. HUD marks, live coordinates and timecode.',
     tags: ['webgl', 'simulation', 'interaction'],
     copy: false,
+    stars: 3,
+    category: 'webgl',
+    thumb: '/images/lab/thumbs/concept.webp',
   },
   {
     slug: 'glace-et-lave',
@@ -47,6 +139,10 @@ export const experiments: Experiment[] = [
     description: 'Brush reveal sur un canyon gelé sous une aurore boréale. Le curseur fait fondre la glace : la rivière devient lave, le volcan entre en éruption, la porte du temple rougeoie.',
     descriptionEn: 'Brush reveal on a frozen canyon under the northern lights. The cursor melts the ice: the river turns to lava, the volcano erupts, the temple gate glows red.',
     tags: ['canvas', 'interaction', 'ia-images'],
+    stars: 2,
+    category: 'revelation',
+    group: 'brush-reveal',
+    thumb: '/images/lab/thumbs/glace-et-lave.webp',
   },
   {
     slug: 'champ-de-croix',
@@ -56,6 +152,9 @@ export const experiments: Experiment[] = [
     description: 'Une grille de « × » qui pivotent en « + » et rosissent autour du curseur, comme une onde. Un clic envoie une vague. Clin d’œil à Lacroix.',
     descriptionEn: 'A grid of “×” that turn into “+” and blush pink around the cursor, like a ripple. A click sends a wave. A nod to my surname, Lacroix.',
     tags: ['canvas', 'interaction', 'génératif'],
+    stars: 2,
+    category: 'generatif',
+    thumb: '/images/lab/thumbs/champ-de-croix.webp',
   },
   {
     slug: 'mise-au-point',
@@ -65,6 +164,9 @@ export const experiments: Experiment[] = [
     description: 'Un bokeh pastel. La hauteur du curseur règle la profondeur de champ : les disques deviennent nets, et le titre aussi quand on fait le point en bas.',
     descriptionEn: 'Pastel bokeh. The cursor height sets the depth of field: the discs come into focus, and so does the title when you focus at the bottom.',
     tags: ['canvas', 'photo', 'interaction'],
+    stars: 1,
+    category: 'generatif',
+    thumb: '/images/lab/thumbs/mise-au-point.webp',
   },
   {
     slug: 'prairie-au-vent',
@@ -74,6 +176,9 @@ export const experiments: Experiment[] = [
     description: 'Herbes et fleurs procédurales sur fond nuit, qui ondulent au vent et se couchent au passage du curseur. Ressorts amortis et lucioles.',
     descriptionEn: 'Procedural grass and flowers on a night background, swaying in the wind and bending as the cursor passes. Damped springs and fireflies.',
     tags: ['canvas', 'physique', 'génératif'],
+    stars: 1,
+    category: 'generatif',
+    thumb: '/images/lab/thumbs/prairie-au-vent.webp',
   },
   {
     slug: 'champ-de-flux',
@@ -83,6 +188,9 @@ export const experiments: Experiment[] = [
     description: 'Des milliers de fils suivent un champ de vecteurs (bruit de Perlin 3D). Le curseur crée un tourbillon, un clic rebat le champ.',
     descriptionEn: 'Thousands of threads follow a vector field (3D Perlin noise). The cursor creates a vortex, a click reshuffles the field.',
     tags: ['canvas', 'maths', 'génératif'],
+    stars: 2,
+    category: 'generatif',
+    thumb: '/images/lab/thumbs/champ-de-flux.webp',
   },
   {
     slug: 'petales',
@@ -92,5 +200,8 @@ export const experiments: Experiment[] = [
     description: 'Des pétales de cerisier tombent, poussés par le curseur, et s’accumulent en bas. Un geste rapide au ras du sol les fait repartir.',
     descriptionEn: 'Cherry blossom petals fall, pushed by the cursor, and pile up at the bottom. A quick swipe along the ground sends them flying again.',
     tags: ['canvas', 'physique', 'interaction'],
+    stars: 1,
+    category: 'generatif',
+    thumb: '/images/lab/thumbs/petales.webp',
   },
 ];

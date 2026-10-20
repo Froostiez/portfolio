@@ -1,0 +1,1179 @@
+---
+// Monte Carlo en direct : une grille de FIRE! (le jeu de Ferdi) et, à côté, l'arbre d'un Single-Player MCTS
+// qui grandit en temps réel pendant la recherche du nombre minimal de tours. Puis l'IA joue sa meilleure séquence.
+import HeroShell from './HeroShell.astro';
+import { url } from '../../utils';
+const SPR = url('/images/lab/fire/');
+---
+<HeroShell name="mcts" scrim={false}>
+  <div class="hud" aria-hidden="true">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <span class="lbl l-tr" data-treelbl>SP-MCTS · UCT + σ<br /><span data-l="fr">ARBRE DE RECHERCHE</span><span data-l="en">SEARCH TREE</span></span>
+  </div>
+
+  <div class="tip" data-tip aria-hidden="true">
+    <b data-tip-move>A1</b> · <span data-l="fr">coup</span><span data-l="en">move</span> <span data-tip-d>1</span><br />
+    <span data-tip-n>0</span> <span data-l="fr">visites</span><span data-l="en">visits</span> · <span data-l="fr">moy.</span><span data-l="en">avg</span> <span data-tip-m>0</span> · min <span data-tip-b>0</span>
+  </div>
+
+  <div class="banner" data-banner aria-live="polite">
+    <div class="row ai"><span class="who"><span data-l="fr">IA</span><span data-l="en">AI</span></span><b data-ban-ai>0</b><span class="u"><span data-l="fr">tours</span><span data-l="en">turns</span></span></div>
+    <div class="row you" data-ban-yourow><span class="who"><span data-l="fr">Vous</span><span data-l="en">You</span></span><b data-ban-you>0</b><span class="u"><span data-l="fr">tours</span><span data-l="en">turns</span></span></div>
+    <div class="opt" data-ban-opt><span data-l="fr">optimal prouvé</span><span data-l="en">proven optimal</span></div>
+  </div>
+
+  <div class="sub" data-sub>
+    <p class="sub-main">
+      <span data-ph="fresh"><span data-l="fr">Nouveau niveau : nouvelle forêt, nouveaux murs</span><span data-l="en">New level: new forest, new walls</span></span>
+      <span data-ph="search"><span class="n">1.</span> <span data-l="fr">L’IA explore… </span><span data-l="en">The AI explores… </span><b data-p-it>0</b> / <span data-p-bud>0</span> <span data-l="fr">parties simulées</span><span data-l="en">simulated games</span></span>
+      <span data-ph="human"><span data-l="fr">Votre partie : tour </span><span data-l="en">Your game: turn </span><b data-p-hturn>0</b> · <span data-p-left>0</span> <span data-l="fr">cases de forêt restantes</span><span data-l="en">forest tiles left</span></span>
+      <span data-ph="compare"><span data-l="fr">Votre résultat : </span><span data-l="en">Your result: </span><b data-p-you>0</b> <span data-l="fr">tours. Au tour de l’IA…</span><span data-l="en">turns. Now the AI…</span></span>
+      <span data-ph="play"><span class="n">2.</span> <span data-l="fr">L’IA joue sa meilleure séquence : tour </span><span data-l="en">The AI plays its best sequence: turn </span><b data-p-step>0</b> / <span data-p-tot>0</span></span>
+      <span data-ph="done"><span class="n">3.</span> <span data-l="fr">Résultat : </span><span data-l="en">Result: </span><b data-p-res>0</b> <span data-l="fr">tours</span><span data-l="en">turns</span> <span class="lbx">(<span data-l="fr">minimum théorique ≥ </span><span data-l="en">theoretical minimum ≥ </span><span data-p-lb>0</span>)</span></span>
+    </p>
+    <div class="bar"><i data-p-bar></i></div>
+    <p class="cta" data-ph="search fresh"><i class="cur"></i><span data-l="fr">À vous : cliquez une case pour tenter de faire mieux que l’IA</span><span data-l="en">Your turn: click a tile to try to beat the AI</span></p>
+    <p class="cta" data-ph="human"><span data-l="fr">Continuez jusqu’à ce que toute la forêt ait brûlé. L’IA cherche en parallèle.</span><span data-l="en">Keep going until the whole forest has burnt. The AI keeps searching meanwhile.</span></p>
+    <p class="cta soft" data-ph="compare"><span data-l="fr">Puis l’IA joue, et un nouveau niveau est généré.</span><span data-l="en">Then the AI plays, and a new level is generated.</span></p>
+    <p class="cta soft rule" data-ph="search"><span data-l="fr">Arrêt dès qu’une séquence atteint la borne (<span data-r-lb>0</span> tours : optimum prouvé), sinon après <span data-r-bud>0</span> parties.</span><span data-l="en">Stops once a sequence reaches the bound (<span data-r-lb>0</span> turns: proven optimum), otherwise after <span data-r-bud>0</span> games.</span></p>
+    <p class="reason r-opt" data-ph="search play done"><i class="ok">✓</i><span data-l="fr">Optimal prouvé : la séquence atteint la borne, impossible de faire moins de <b data-r-lb>0</b> tours.</span><span data-l="en">Proven optimal: the sequence reaches the bound, it is impossible to do better than <b data-r-lb>0</b> turns.</span></p>
+    <p class="reason r-gap" data-ph="play done"><i class="ko">≈</i><span data-l="fr">Meilleure séquence trouvée, pas prouvée optimale : budget de simulations épuisé, écart de <b data-r-gap>0</b> <span data-r-gapu-fr>tour</span> avec la borne (<span data-r-lb>0</span>).</span><span data-l="en">Best sequence found, not proven optimal: simulation budget used up, <b data-r-gap>0</b> <span data-r-gapu-en>turn</span> above the bound (<span data-r-lb>0</span>).</span></p>
+    <p class="hist" data-hist data-ph="search play done compare human"><span class="hk"><span data-l="fr">améliorations</span><span data-l="en">improvements</span></span><span data-hist-list></span></p>
+  </div>
+
+  <div class="legend glegend" data-glegend aria-hidden="true">
+    <span><img src={`${SPR}DEV_arbre.png`} alt="" /><span data-l="fr">forêt</span><span data-l="en">forest</span></span>
+    <span><img src={`${SPR}DEV_arbreenfeu.png`} alt="" /><span data-l="fr">en feu</span><span data-l="en">burning</span></span>
+    <span><img src={`${SPR}DEV_brule.png`} alt="" /><span data-l="fr">brûlé</span><span data-l="en">burnt</span></span>
+    <span><img class="wall" src={`${SPR}DEV_mur2.png`} alt="" /><span data-l="fr">mur</span><span data-l="en">wall</span><span class="lg"><span data-l="fr"> (bloque le feu)</span><span data-l="en"> (blocks fire)</span></span></span>
+    <span><i class="num">1</i><i class="num">2</i><span data-l="fr">cases que l’IA prévoit d’allumer</span><span data-l="en">tiles the AI plans to light</span><span class="lg"><span data-l="fr">, dans l’ordre</span><span data-l="en">, in order</span></span></span>
+  </div>
+
+  <div class="legend tlegend" data-tlegend aria-hidden="true">
+    <span><i class="qscale"><i></i><i></i><i></i><i></i><i></i></i><span data-l="fr">coup médiocre → bon coup</span><span data-l="en">poor move → good move</span><span class="lg"><span data-l="fr"> (couleur, taille, lueur)</span><span data-l="en"> (colour, size, glow)</span></span></span>
+    <span><i class="best"></i><span data-l="fr">meilleure séquence</span><span data-l="en">best sequence</span><span class="lg"><span data-l="fr"> trouvée</span><span data-l="en"> found</span></span></span>
+    <span><i class="ring"></i><span class="lg"><span data-l="fr">centre = départ · </span><span data-l="en">centre = start · </span></span><span data-l="fr">1 anneau = 1 tour</span><span data-l="en">1 ring = 1 turn</span></span>
+  </div>
+
+  <div class="intro" data-intro>
+    <button type="button" class="x" data-intro-close aria-label="Fermer / Close">×</button>
+    <p class="kick"><span data-l="fr">Monte Carlo en direct</span><span data-l="en">Live Monte Carlo</span></p>
+    <h3><span data-l="fr">Comment ça marche</span><span data-l="en">How it works</span></h3>
+    <ol>
+      <li><b><span data-l="fr">Le jeu.</span><span data-l="en">The game.</span></b> <span data-l="fr">Dans FIRE!, il faut brûler toute la forêt en un minimum de tours. À chaque tour on allume une case, et le feu se propage aux cases voisines (jamais en diagonale ni à travers un mur).</span><span data-l="en">In FIRE!, you must burn the whole forest in as few turns as possible. Each turn you light one tile, and the fire spreads to neighbouring tiles (never diagonally, never through a wall).</span></li>
+      <li><b><span data-l="fr">L’IA.</span><span data-l="en">The AI.</span></b> <span data-l="fr">Elle simule des milliers de parties (Monte Carlo Tree Search), insiste sur les coups prometteurs et garde la meilleure séquence, puis la joue. Le MCTS ne garantit pas l’optimum : on n’est sûr d’avoir la meilleure séquence que si elle atteint la borne inférieure (le minimum théorique).</span><span data-l="en">It simulates thousands of games (Monte Carlo Tree Search), focuses on promising moves and keeps the best sequence, then plays it. MCTS does not guarantee the optimum: the best sequence is only certain when it reaches the lower bound (the theoretical minimum).</span></li>
+      <li><b><span data-l="fr">L’arbre.</span><span data-l="en">The tree.</span></b> <span data-l="fr">Le centre est le départ, chaque anneau un tour, chaque branche un coup essayé. Les bons coups sont grands, lumineux et cyan à blanc-vert ; les coups médiocres restent petits et sombres. En orange, la meilleure séquence.</span><span data-l="en">The centre is the start, each ring a turn, each branch a move tried. Good moves are large, bright, cyan to white-green; poor moves stay small and dim. Orange is the best sequence.</span></li>
+    </ol>
+    <p class="foot"><span data-l="fr">Vous pouvez aussi jouer : cliquez une case de la grille.</span><span data-l="en">You can play too: click a tile on the board.</span></p>
+    <div class="intro-actions">
+      <button type="button" class="btn go" data-intro-go><span data-l="fr">C’est parti</span><span data-l="en">Let’s go</span></button>
+      <a class="btn fire ghost" href="https://fire-vert-pi.vercel.app/" target="_blank" rel="noopener noreferrer"><span data-l="fr">Jouer à FIRE!</span><span data-l="en">Play FIRE!</span> <span aria-hidden="true">↗</span></a>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="stats">
+      <div class="stat"><span class="k"><span data-l="fr">itérations</span><span data-l="en">iterations</span></span><b data-s-it>0</b></div>
+      <div class="stat hot"><span class="k"><span data-l="fr">meilleure</span><span data-l="en">best</span></span><b><span data-s-best>…</span><small><span data-l="fr"> tours</span><span data-l="en"> turns</span></small></b></div>
+      <div class="stat lb" data-lbstat tabindex="0"><span class="k"><span data-l="fr">borne inf.</span><span data-l="en">lower bound</span> <i class="qi">?</i></span><b data-s-lb>0</b>
+        <span class="pop"><span data-l="fr">Le feu ne gagne qu’une case par tour : même parfaitement joué, ce niveau demande au moins <b data-p-lb2>0</b> tours.</span><span data-l="en">Fire only gains one tile per turn: even with perfect play, this level needs at least <b data-p-lb2>0</b> turns.</span></span>
+      </div>
+      <div class="stat depth"><span class="k"><span data-l="fr">profondeur</span><span data-l="en">depth</span></span><b data-s-depth>0</b></div>
+    </div>
+    <div class="controls">
+      <button type="button" class="btn" data-new><span data-l="fr">Nouveau niveau</span><span data-l="en">New level</span></button>
+      <button type="button" class="btn q" data-help aria-label="Aide / Help">?</button>
+      <button type="button" class="btn" data-speed aria-label="Vitesse / Speed"><span class="spw"><span data-l="fr">Vitesse </span><span data-l="en">Speed </span></span><span data-speed-v>×1</span></button>
+      <a class="btn fire" href="https://fire-vert-pi.vercel.app/" target="_blank" rel="noopener noreferrer"><span data-l="fr">Jouer à FIRE!</span><span data-l="en">Play FIRE!</span> <span aria-hidden="true">↗</span></a>
+      <span class="hint"><span data-l="fr">survolez l’arbre : chaque point est un coup essayé</span><span data-l="en">hover the tree: each dot is a move tried</span></span>
+    </div>
+  </div>
+  <slot />
+</HeroShell>
+
+<style>
+  /* curseur toujours visible sur ce lab (le brush reveal le masque sur les autres pages plein écran) */
+  :global(body.has-hero:has([data-hero="mcts"])) { cursor: default; }
+  :global(.hero-shell[data-hero="mcts"]) { cursor: default; }
+  :global(.hero-shell[data-hero="mcts"]) { background: radial-gradient(ellipse at 70% 50%, #1b1338 0%, #100d1c 45%, #0b0a10 85%); }
+  .hud { position: absolute; inset: 0; pointer-events: none; font: 500 11px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .14em; color: rgba(201, 184, 255, .6); }
+  .corner { position: absolute; width: 18px; height: 18px; border-color: rgba(201, 184, 255, .4); border-style: solid; border-width: 0; }
+  .tl { left: 24px; top: 88px; border-left-width: 1px; border-top-width: 1px; }
+  .tr { right: 24px; top: 88px; border-right-width: 1px; border-top-width: 1px; }
+  .bl { left: 24px; bottom: 24px; border-left-width: 1px; border-bottom-width: 1px; }
+  .br { right: 24px; bottom: 24px; border-right-width: 1px; border-bottom-width: 1px; }
+  .lbl { position: absolute; white-space: nowrap; }
+  .l-tl { left: 50px; top: 92px; }
+  .l-tr { right: 50px; top: 92px; text-align: right; }
+
+  .panel {
+    position: absolute; left: 50px; bottom: 34px; display: flex; flex-direction: column; gap: 10px;
+    font: 500 11px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .12em; color: #a9a3b8; text-transform: uppercase;
+  }
+  .stats { align-self: flex-start; display: flex; gap: 1px; border-radius: 14px; overflow: hidden; background: rgba(201, 184, 255, .12); border: 1px solid rgba(201, 184, 255, .14); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .stat { display: flex; flex-direction: column; gap: 2px; padding: 9px 16px 10px; min-width: 104px; background: rgba(16, 13, 28, .72); }
+  .stat .k { font-size: 9.5px; letter-spacing: .18em; color: rgba(169, 163, 184, .85); }
+  .stat b { font: 600 20px/1.1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .02em; color: #f3eff8; text-transform: none; font-variant-numeric: tabular-nums; }
+  .stat b small { font-size: 10px; letter-spacing: .1em; color: #a9a3b8; font-weight: 500; }
+  .stat.hot b > span:first-child { color: #ffb27a; text-shadow: 0 0 14px rgba(255, 140, 70, .45); }
+  .controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .btn {
+    pointer-events: auto; cursor: pointer; font: inherit; letter-spacing: .14em; text-transform: uppercase; color: #e6defc;
+    padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(201, 184, 255, .28); background: rgba(24, 20, 40, .6);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: border-color .2s, background .2s, color .2s;
+  }
+  .btn:hover { border-color: rgba(79, 227, 255, .7); color: #fff; background: rgba(40, 32, 70, .7); }
+  .btn:focus-visible { outline: 2px solid #4fe3ff; outline-offset: 2px; }
+  .hint { color: rgba(169, 163, 184, .6); font-size: 10px; letter-spacing: .14em; margin-left: 6px; }
+
+
+  /* sous-titre de phase */
+  .sub { position: absolute; left: 50px; top: 104px; z-index: 3; max-width: min(680px, calc(100% - 100px)); pointer-events: none; }
+  .sub p { margin: 0; }
+  .sub [data-ph] { display: none; }
+  :global(.hero-shell[data-phase="fresh"]) .sub span[data-ph~="fresh"],
+  :global(.hero-shell[data-phase="search"]) .sub span[data-ph~="search"],
+  :global(.hero-shell[data-phase="human"]) .sub span[data-ph~="human"],
+  :global(.hero-shell[data-phase="compare"]) .sub span[data-ph~="compare"],
+  :global(.hero-shell[data-phase="play"]) .sub span[data-ph~="play"],
+  :global(.hero-shell[data-phase="done"]) .sub span[data-ph~="done"] { display: inline; }
+  :global(.hero-shell[data-phase="fresh"]) .sub p[data-ph~="fresh"],
+  :global(.hero-shell[data-phase="search"]) .sub p[data-ph~="search"],
+  :global(.hero-shell[data-phase="human"]) .sub p[data-ph~="human"],
+  :global(.hero-shell[data-phase="compare"]) .sub p[data-ph~="compare"],
+  :global(.hero-shell[data-phase="play"]) .sub p[data-ph~="play"],
+  :global(.hero-shell[data-phase="done"]) .sub p[data-ph~="done"] { display: flex; }
+  .sub-main { font: 500 15.5px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #f3eff8; letter-spacing: .005em; }
+  .sub-main b { color: #ffb27a; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .sub-main .n { font: 600 12px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; color: #4fe3ff; margin-right: 2px; }
+  :global(.hero-shell[data-phase="search"]) .sub-main b { color: #4fe3ff; }
+  .sub-main .lbx { color: #a9a3b8; }
+  .optok { display: none; color: #4fe3ff; }
+  :global(.hero-shell.opt) .optok { display: inline; }
+  .bar { display: none; width: 220px; height: 2px; margin: 8px 0 7px; border-radius: 2px; background: rgba(201, 184, 255, .16); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #7a5cff, #4fe3ff); box-shadow: 0 0 8px #4fe3ff; }
+  :global(.hero-shell[data-phase="search"]) .bar, :global(.hero-shell[data-phase="play"]) .bar { display: block; }
+  :global(.hero-shell[data-phase="play"]) .bar i { background: linear-gradient(90deg, #ff9a52, #ffa8cf); box-shadow: 0 0 8px #ff9a52; }
+  .cta { align-items: center; gap: 8px; margin-top: 4px !important; font: 500 12.5px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #c9b8ff; }
+  .cta.soft { color: #a9a3b8; }
+  .rule { font-size: 11.5px !important; max-width: 560px; }
+  .reason { align-items: baseline; gap: 7px; margin-top: 6px !important; font: 500 12.5px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #d8d1ea; max-width: 600px; }
+  .reason b { font-weight: 700; }
+  .reason i { font-style: normal; flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font: 700 10px/1 ui-monospace, Menlo, monospace; transform: translateY(2px); }
+  .reason .ok { color: #0f0e14; background: #7dffc8; box-shadow: 0 0 10px rgba(125, 255, 200, .6); }
+  .r-opt b { color: #7dffc8; }
+  .reason .ko { color: #ffb27a; border: 1px solid rgba(255, 178, 122, .6); }
+  .r-gap b { color: #ffb27a; }
+  /* la raison affichée dépend de la preuve : borne atteinte ou non */
+  :global(.hero-shell:not(.opt)) .sub .r-opt, :global(.hero-shell.opt) .sub .r-gap { display: none !important; }
+  :global(.hero-shell.opt[data-phase="search"]) .sub .rule { display: none !important; }
+  .hist { align-items: center; gap: 8px; margin-top: 7px !important; font: 500 10.5px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .04em; color: #a9a3b8; flex-wrap: wrap; }
+  .hist:has([data-hist-list]:empty) { display: none !important; }
+  .hk { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: rgba(169, 163, 184, .7); }
+  /* éléments créés en JS : styles globaux (pas d'attribut de portée Astro) */
+  .hist :global(.it) { white-space: nowrap; }
+  .hist :global(.it + .it)::before { content: '·'; margin: 0 8px 0 7px; color: rgba(169, 163, 184, .5); }
+  .hist :global(.it b) { color: #f3eff8; font-weight: 600; }
+  .hist :global(.it.new b) { color: #7dffc8; text-shadow: 0 0 10px rgba(125, 255, 200, .8); }
+  .hist.flash :global(.it.new) { animation: pop 1.2s ease-out; }
+  @keyframes pop { 0% { background: rgba(125, 255, 200, .25); border-radius: 6px; } 100% { background: transparent; } }
+  .btn.fire { text-decoration: none; display: inline-block; color: #ffd2ad; border-color: rgba(255, 150, 74, .65); background: linear-gradient(135deg, rgba(255, 120, 60, .18), rgba(255, 168, 207, .1)); box-shadow: 0 0 18px rgba(255, 140, 70, .18); }
+  .btn.fire:hover { color: #fff; border-color: #ff9a4a; background: linear-gradient(135deg, rgba(255, 120, 60, .3), rgba(255, 168, 207, .16)); }
+  .intro-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .cur { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid #c9b8ff; box-shadow: 0 0 8px rgba(201, 184, 255, .7); animation: blink 1.6s ease-in-out infinite; flex: none; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* légendes */
+  .legend { position: absolute; z-index: 3; pointer-events: none; display: flex; flex-wrap: wrap; gap: 6px 14px; font: 500 11px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: rgba(169, 163, 184, .9); }
+  .legend > span { display: inline-block; white-space: nowrap; }
+  .legend > span > img, .legend > span > i { vertical-align: middle; margin: -2px 6px 0 0; }
+  .legend > span > i.num { margin-right: 3px; }
+  .legend > span > i.num + span { margin-left: 3px; }
+  .legend img { width: 16px; height: 16px; image-rendering: pixelated; }
+  .legend img.wall { width: 16px; height: 8px; }
+  .legend .num { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; border: 1.2px solid #4fe3ff; color: #4fe3ff; font: 700 8px/1 ui-monospace, Menlo, monospace; font-style: normal; box-shadow: 0 0 6px rgba(79, 227, 255, .5); text-indent: 0; }
+  .tlegend { right: 50px; top: 136px; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .tlegend i { display: inline-block; }
+  .tlegend .qscale { display: inline-flex !important; align-items: center; gap: 4px; }
+  .qscale i { display: block; border-radius: 50%; }
+  .qscale i:nth-child(1) { width: 3px; height: 3px; background: rgb(52, 40, 120); }
+  .qscale i:nth-child(2) { width: 4px; height: 4px; background: rgb(108, 82, 220); }
+  .qscale i:nth-child(3) { width: 6px; height: 6px; background: rgb(79, 200, 255); box-shadow: 0 0 5px rgba(79, 200, 255, .7); }
+  .qscale i:nth-child(4) { width: 8px; height: 8px; background: rgb(110, 245, 255); box-shadow: 0 0 8px rgba(110, 245, 255, .9); }
+  .qscale i:nth-child(5) { width: 10px; height: 10px; background: rgb(215, 255, 232); box-shadow: 0 0 12px 2px rgba(150, 255, 210, .9); }
+  .tlegend .best { width: 34px; height: 2px; border-radius: 2px; background: #ff9a4a; box-shadow: 0 0 8px #ff9a4a; }
+  .glegend.side { flex-direction: column; flex-wrap: nowrap; gap: 11px; }
+  .glegend.side > span { white-space: normal; display: block; padding-left: 24px; text-indent: -24px; }
+  .tlegend .ring { width: 14px; height: 14px; border-radius: 50%; border: 1px dashed rgba(201, 184, 255, .55); position: relative; }
+  .tlegend .ring::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; border-radius: 50%; background: #e9fbff; box-shadow: 0 0 5px #4fe3ff; }
+
+  /* borne inférieure : infobulle */
+  .stat.lb { position: relative; pointer-events: auto; cursor: help; }
+  .qi { display: inline-grid; place-items: center; width: 11px; height: 11px; border-radius: 50%; border: 1px solid rgba(169, 163, 184, .6); font: 600 7.5px/1 ui-monospace, monospace; font-style: normal; vertical-align: 1px; }
+  .stats { overflow: visible !important; }
+  .stat:first-child { border-radius: 13px 0 0 13px; }
+  .stat:last-child { border-radius: 0 13px 13px 0; }
+  .pop {
+    position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); width: 250px; padding: 9px 12px; border-radius: 10px; z-index: 6;
+    background: rgba(14, 11, 26, .94); border: 1px solid rgba(201, 184, 255, .25); color: #d8d1ea; text-transform: none; letter-spacing: .01em;
+    font: 400 12px/1.45 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .pop b { font: inherit; font-weight: 650; color: #ffb27a; font-size: 12px; }
+  .stat.lb:hover .pop, .stat.lb:focus .pop, .stat.lb.open .pop { opacity: 1; }
+  .btn.q { padding: 7px 0; width: 31px; text-align: center; letter-spacing: 0; }
+
+  /* encart d'explication */
+  .intro {
+    position: absolute; left: 50%; top: 50%; z-index: 5; width: 410px; max-width: calc(100% - 32px); transform: translate(-50%, -50%);
+    padding: 22px 24px 20px; border-radius: 20px; pointer-events: auto; cursor: default;
+    background: rgba(16, 12, 30, .9); border: 1px solid rgba(201, 184, 255, .22); box-shadow: 0 20px 70px rgba(0, 0, 0, .55), 0 0 60px rgba(122, 92, 255, .16);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #d8d1ea; font: 400 13.5px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    transition: opacity .25s, transform .25s;
+  }
+  .intro[hidden] { display: block; opacity: 0; pointer-events: none; transform: translate(-50%, -48%); visibility: hidden; transition: opacity .25s, transform .25s, visibility 0s .25s; }
+  .intro .kick { margin: 0; font: 500 10px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .2em; text-transform: uppercase; color: #4fe3ff; }
+  .intro h3 { margin: 4px 0 12px; font-size: 20px; line-height: 1.2; color: #f3eff8; font-weight: 700; letter-spacing: -.01em; }
+  .intro ol { margin: 0; padding: 0; list-style: none; counter-reset: k; display: grid; gap: 10px; }
+  .intro li { counter-increment: k; position: relative; padding-left: 30px; }
+  .intro li::before { content: counter(k); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 10px/1 ui-monospace, Menlo, monospace; color: #0f0e14; background: linear-gradient(135deg, #c9b8ff, #4fe3ff); }
+  .intro li:nth-child(3)::before { background: linear-gradient(135deg, #ffb27a, #ffa8cf); }
+  .intro li b { color: #f3eff8; }
+  .intro .foot { margin: 14px 0 14px; color: #c9b8ff; font-size: 12.5px; }
+  .intro .x { position: absolute; right: 12px; top: 10px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: #a9a3b8; font-size: 18px; line-height: 1; cursor: pointer; }
+  .intro .x:hover { color: #fff; background: rgba(201, 184, 255, .12); }
+  .intro .go { border-color: rgba(79, 227, 255, .6); color: #fff; }
+
+  .tip {
+    position: absolute; left: 0; top: 0; z-index: 4; pointer-events: none; opacity: 0; transition: opacity .15s;
+    padding: 7px 10px; border-radius: 10px; background: rgba(14, 11, 26, .86); border: 1px solid rgba(201, 184, 255, .25);
+    font: 500 10.5px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .08em; color: #c9c2dc; white-space: nowrap;
+  }
+  .tip b { color: #ffb27a; }
+  .tip.on { opacity: 1; }
+
+  .banner {
+    position: absolute; left: 0; top: 0; z-index: 4; transform: translate(-50%, -50%) scale(.96); opacity: 0; pointer-events: none;
+    padding: 16px 26px 14px; border-radius: 18px; text-align: center;
+    background: rgba(14, 11, 26, .82); border: 1px solid rgba(255, 168, 207, .3); box-shadow: 0 10px 50px rgba(0, 0, 0, .5), 0 0 40px rgba(158, 97, 255, .18);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font: 500 11px/1.4 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; color: #a9a3b8;
+  }
+  .banner .row { display: flex; align-items: baseline; justify-content: center; gap: 10px; }
+  .banner .who { min-width: 44px; text-align: right; }
+  .banner b { font: 700 34px/1.1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: 0; color: #ffb27a; text-shadow: 0 0 18px rgba(255, 140, 70, .5); }
+  .banner .you b { color: #c9b8ff; text-shadow: 0 0 18px rgba(158, 97, 255, .5); }
+  .banner .opt { margin-top: 6px; font-size: 9.5px; color: #4fe3ff; display: none; }
+  .banner.isopt .opt { display: block; }
+  .banner .you { display: none; }
+  .banner.withyou .you { display: flex; }
+
+  @media (max-width: 859px) {
+    .l-tl, .l-tr, .tl, .tr { display: none; }
+    .panel { left: 16px; right: 16px; bottom: 16px; gap: 8px; }
+    .stats { width: 100%; }
+    .stat { flex: 1; min-width: 0; padding: 7px 8px 8px; }
+    .stat .k { font-size: 8.5px; letter-spacing: .1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat b { font-size: 17px; }
+    .hint { display: none; }
+    .bl, .br { display: none; }
+    .sub { left: 16px; right: 16px; max-width: none; }
+    .sub-main { font-size: 14px; }
+    .cta { font-size: 12px; }
+    .bar { margin: 6px 0 5px; }
+    .legend { font-size: 10px; gap: 4px 9px; }
+    .legend img { width: 14px; height: 14px; }
+    .legend .lg { display: none; }
+    .tlegend .best { width: 20px; }
+    .controls { gap: 6px; }
+    .btn { padding: 6px 11px; letter-spacing: .1em; }
+    .rule { display: none !important; }
+    .reason { font-size: 12px; margin-top: 4px !important; }
+    .hist { margin-top: 4px !important; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+    .hist .hk { display: none; }
+    .hist :global(.it:not(:nth-last-child(-n+2))) { display: none; }
+    .hist :global(.it:nth-last-child(2))::before { content: none; }
+    .spw { display: none; }
+    .btn { font-size: 10px; padding: 6px 10px; }
+    .tlegend { right: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px 12px; }
+    .stat.depth { display: none; }
+    .pop { left: 0; transform: none; width: 220px; }
+    .intro { padding: 18px 18px 16px; font-size: 13px; }
+  }
+</style>
+
+<script>
+  import { runHero, type HeroCtx } from '../../hero';
+
+  // ───────── CONFIG ─────────
+  const GRID = { cols: 9, rows: 9 };          // taille de la grille (bureau)
+  const GRID_MOBILE = { cols: 8, rows: 8 };   // taille de la grille (petit écran)
+  const PROBA_LIEN = 0.55;                    // probabilité que deux cases voisines soient reliées (pas de mur)
+  const ITER_PER_FRAME = 9;                   // itérations MCTS par frame à la vitesse ×1 (moitié sur mobile) : environ 11 s de recherche
+  const FRAME_BUDGET_MS = 7;                  // temps de calcul max par frame
+  const ITER_BUDGET = 6000;                   // itérations avant que l'IA joue (2500 sur mobile)
+  const ITER_MIN_OPT = 2500;                  // si l'optimum est prouvé (= borne inf.), on s'arrête plus tôt
+  const SPEEDS = [1, 3, 10];                  // multiplicateurs du bouton vitesse
+  const UCT_C = 0.35;                         // constante d'exploration UCT
+  const SP_D = 0.02;                          // terme de variance du SP-MCTS (Schadd et al.)
+  const LAMBDA_BEST = 0.5;                    // mélange moyenne / meilleur score dans l'exploitation
+  const PW_K = 0.8, PW_A = 0.47;                // élargissement progressif : enfants max = K * n^A
+  const GREEDY = 0.6;                         // part des coups « loin du feu » dans les simulations
+  const STEP_S = 1.15;                        // durée d'un tour pendant la partie animée (à ×1)
+  const HOLD_S = 4.2;                         // pause sur le score avant le niveau suivant
+  const FRESH_S = 1.6;                        // annonce « Nouveau niveau » avant la recherche
+  const INTRO_KEY = 'mcts-fire-intro';        // localStorage : encart déjà refermé
+  const SPRITES = 'images/lab/fire/';         // dans public/
+
+  // couleurs (DA du lab) : violet, lavande, cyan, touche de feu
+  const C_LOW = [92, 58, 210], C_MID = [201, 184, 255], C_HIGH = [79, 227, 255];
+  const C_FIRE = [255, 150, 74], C_PINK = [255, 168, 207];
+  const QUALITY_GAMMA = 3.2;                  // appliqué au percentile : > 1, seuls les vrais bons coups ressortent
+  const GLOW_FROM = 0.8;                      // qualité à partir de laquelle un nœud reçoit une lueur
+  const GLOW_MAX = 40;                        // nombre maximal de nœuds lumineux
+
+  const FORET = 0, EN_FEU = 1, BRULE = 2;
+  const LETTERS = 'ABCDEFGHIJKLMNOP';
+  const MONO = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+
+  // ───────── niveau (portage de niveau.ts) ─────────
+  interface Level { cols: number; rows: number; n: number; adj: number[][]; linkR: Uint8Array; linkD: Uint8Array; ecc: Int16Array; bound: number }
+  interface St { e: Uint8Array; fire: number[]; forest: number; turns: number }
+
+  function genLevel(cols: number, rows: number): Level {
+    const n = cols * rows;
+    const linkR = new Uint8Array(n), linkD = new Uint8Array(n);
+    for (let l = 0; l < rows; l++) for (let c = 0; c < cols; c++) {
+      const k = l * cols + c;
+      if (l + 1 < rows && Math.random() < PROBA_LIEN) linkD[k] = 1;
+      if (c + 1 < cols && Math.random() < PROBA_LIEN) linkR[k] = 1;
+    }
+    // casse des murs au hasard jusqu'à une seule composante (Union-Find)
+    const parent = Array.from({ length: n }, (_, k) => k);
+    const find = (k: number): number => { while (parent[k] !== k) { parent[k] = parent[parent[k]]; k = parent[k]; } return k; };
+    const union = (a: number, b: number) => { const ra = find(a), rb = find(b); if (ra === rb) return false; parent[ra] = rb; return true; };
+    const walls: [number, boolean][] = [];
+    for (let k = 0; k < n; k++) {
+      const c = k % cols;
+      if (k + cols < n) { if (linkD[k]) union(k, k + cols); else walls.push([k, true]); }
+      if (c + 1 < cols) { if (linkR[k]) union(k, k + 1); else walls.push([k, false]); }
+    }
+    for (let i = walls.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [walls[i], walls[j]] = [walls[j], walls[i]]; }
+    for (const [a, down] of walls) if (union(a, down ? a + cols : a + 1)) (down ? linkD : linkR)[a] = 1;
+
+    const adj: number[][] = [];
+    for (let k = 0; k < n; k++) {
+      const c = k % cols, v: number[] = [];
+      if (c + 1 < cols && linkR[k]) v.push(k + 1);
+      if (c > 0 && linkR[k - 1]) v.push(k - 1);
+      if (k + cols < n && linkD[k]) v.push(k + cols);
+      if (k - cols >= 0 && linkD[k - cols]) v.push(k - cols);
+      adj.push(v);
+    }
+    // distances (BFS depuis chaque case) : excentricité et borne par les boules
+    const ecc = new Int16Array(n);
+    const maxBall = new Array(n + 1).fill(0);
+    const dist = new Int16Array(n);
+    for (let s = 0; s < n; s++) {
+      dist.fill(-1); dist[s] = 0;
+      const q = [s];
+      for (let i = 0; i < q.length; i++) for (const v of adj[q[i]]) if (dist[v] < 0) { dist[v] = dist[q[i]] + 1; q.push(v); }
+      let e = 0;
+      const cnt = new Array(n + 1).fill(0);
+      for (let k = 0; k < n; k++) { e = Math.max(e, dist[k]); cnt[dist[k]]++; }
+      ecc[s] = e;
+      let acc = 0;
+      for (let r = 0; r <= n; r++) { acc += cnt[r]; if (acc > maxBall[r]) maxBall[r] = acc; }
+    }
+    // borne inférieure : en k tours, la case choisie au tour i brûle une boule de rayon k - i,
+    // donc il faut  somme_{r<k} maxBall[r] >= n.  (le graphe étant connexe, une seule composante)
+    let k = 0, cover = 0;
+    while (cover < n) { cover += maxBall[k]; k++; }
+    return { cols, rows, n, adj, linkR, linkD, ecc, bound: Math.max(1, k) };
+  }
+
+  const fresh = (L: Level): St => ({ e: new Uint8Array(L.n), fire: [], forest: L.n, turns: 0 });
+  const clone = (s: St): St => ({ e: s.e.slice(), fire: s.fire.slice(), forest: s.forest, turns: s.turns });
+
+  // un tour : le feu se propage aux voisines forêt puis les cases en feu deviennent brûlées, puis la case choisie prend feu
+  function play(L: Level, s: St, k: number) {
+    const nouveaux: number[] = [];
+    for (const f of s.fire) {
+      for (const v of L.adj[f]) if (s.e[v] === FORET) { s.e[v] = EN_FEU; nouveaux.push(v); s.forest--; }
+      s.e[f] = BRULE;
+    }
+    s.fire = nouveaux;
+    if (s.e[k] === FORET) { s.e[k] = EN_FEU; s.fire.push(k); s.forest--; }
+    s.turns++;
+  }
+
+  // coups utiles : les forêts qui ne touchent pas le feu (les autres vont brûler de toute façon).
+  // S'il n'y en a aucune, tous les coups se valent : on en garde un seul.
+  function candidates(L: Level, s: St): number[] {
+    const out: number[] = [];
+    let any = -1;
+    for (let k = 0; k < L.n; k++) {
+      if (s.e[k] !== FORET) continue;
+      any = k;
+      let touche = false;
+      for (const v of L.adj[k]) if (s.e[v] === EN_FEU) { touche = true; break; }
+      if (!touche) out.push(k);
+    }
+    if (!out.length && any >= 0) out.push(any);
+    return out;
+  }
+
+  // distance de chaque forêt au feu en ne passant que par des forêts (99 si inatteignable)
+  const distBuf = new Int16Array(256);
+  function distFire(L: Level, s: St): Int16Array {
+    const d = distBuf;
+    d.fill(99, 0, L.n);
+    const q: number[] = [];
+    for (const f of s.fire) { d[f] = 0; q.push(f); }
+    for (let i = 0; i < q.length; i++) for (const v of L.adj[q[i]]) if (s.e[v] === FORET && d[v] > d[q[i]] + 1) { d[v] = d[q[i]] + 1; q.push(v); }
+    return d;
+  }
+  // heuristique : loin du feu, puis central dans le graphe
+  const heur = (L: Level, d: Int16Array, k: number) => d[k] * 100 - L.ecc[k] + Math.random() * 2;
+
+  // ───────── MCTS (Single-Player, élargissement progressif) ─────────
+  interface Node {
+    move: number; parent: Node | null; depth: number; kids: Node[]; untried: number[]; st: St;
+    n: number; sum: number; sum2: number; best: number; terminal: boolean;
+    th: number; r: number; tth: number; tr: number; x: number; y: number; born: number; idx: number;
+  }
+
+  function makeNode(L: Level, st: St, move: number, parent: Node | null, now: number): Node {
+    let untried: number[] = [];
+    if (st.forest > 0) {
+      const d = distFire(L, st);
+      untried = candidates(L, st).sort((a, b) => heur(L, d, a) - heur(L, d, b)); // pop() = le plus prometteur
+    }
+    return {
+      move, parent, depth: parent ? parent.depth + 1 : 0, kids: [], untried, st,
+      n: 0, sum: 0, sum2: 0, best: Infinity, terminal: st.forest === 0,
+      th: parent ? parent.th : -Math.PI / 2, r: parent ? parent.r : 0, tth: 0, tr: 0, x: 0, y: 0, born: now, idx: 0,
+    };
+  }
+
+  class Search {
+    L: Level; root: Node; nodes: Node[] = []; iters = 0; bestT = Infinity; bestSeq: number[] = []; worst = 0; maxDepth = 0;
+    constructor(L: Level, now: number) {
+      this.L = L;
+      this.root = makeNode(L, fresh(L), -1, null, now);
+      this.nodes.push(this.root);
+    }
+    get optimal() { return this.bestT <= this.L.bound; }
+    norm(t: number) { const lo = this.L.bound, hi = Math.max(this.worst, lo + 1); return (hi - t) / (hi - lo + 1); }
+    value(nd: Node) { return nd.n ? (1 - LAMBDA_BEST) * this.norm(nd.sum / nd.n) + LAMBDA_BEST * this.norm(nd.best) : 0; }
+    select(nd: Node): Node {
+      const lo = this.L.bound, hi = Math.max(this.worst, lo + 1), range = hi - lo + 1;
+      const lnN = Math.log(nd.n + 1);
+      let best = nd.kids[0], bv = -Infinity;
+      for (const k of nd.kids) {
+        const mean = k.sum / k.n;
+        const variance = Math.max(0, k.sum2 / k.n - mean * mean) / (range * range);
+        const v = this.value(k) + UCT_C * Math.sqrt(lnN / k.n) + Math.sqrt(variance + SP_D / k.n);
+        if (v > bv) { bv = v; best = k; }
+      }
+      return best;
+    }
+    iterate(now: number) {
+      const L = this.L;
+      // 1. sélection, avec élargissement progressif
+      let nd = this.root;
+      for (;;) {
+        if (nd.terminal) break;
+        if (nd.untried.length && nd.kids.length < Math.max(1, PW_K * Math.pow(nd.n + 1, PW_A))) {
+          // 2. expansion d'un seul enfant (le plus prometteur selon l'heuristique)
+          const m = nd.untried.pop()!;
+          const st = clone(nd.st); play(L, st, m);
+          const ch = makeNode(L, st, m, nd, now);
+          let i = 0; while (i < nd.kids.length && nd.kids[i].move < m) i++;
+          nd.kids.splice(i, 0, ch); // enfants triés par case : mise en page stable
+          ch.idx = this.nodes.length; this.nodes.push(ch);
+          if (ch.depth > this.maxDepth) this.maxDepth = ch.depth;
+          nd = ch;
+          break;
+        }
+        if (!nd.kids.length) break;
+        nd = this.select(nd);
+      }
+      // 3. simulation (semi-gloutonne) jusqu'à ce qu'il n'y ait plus de forêt
+      const s = clone(nd.st), tail: number[] = [];
+      while (s.forest > 0) {
+        const cand = candidates(L, s);
+        let m: number;
+        if (Math.random() < GREEDY) {
+          const d = distFire(L, s);
+          m = cand[0]; let hv = -Infinity;
+          for (const k of cand) { const h = heur(L, d, k); if (h > hv) { hv = h; m = k; } }
+        } else m = cand[(Math.random() * cand.length) | 0];
+        tail.push(m); play(L, s, m);
+      }
+      const T = s.turns;
+      if (T > this.worst) this.worst = T;
+      if (T < this.bestT) {
+        this.bestT = T;
+        const path: number[] = [];
+        for (let p: Node | null = nd; p && p.parent; p = p.parent) path.push(p.move);
+        this.bestSeq = path.reverse().concat(tail);
+      }
+      // 4. rétropropagation (on minimise le nombre de tours)
+      for (let p: Node | null = nd; p; p = p.parent) { p.n++; p.sum += T; p.sum2 += T * T; if (T < p.best) p.best = T; }
+      this.iters++;
+    }
+    // nœuds de l'arbre qui suivent une séquence de coups depuis la racine
+    follow(seq: number[]): Node[] {
+      const out: Node[] = [];
+      let nd = this.root;
+      for (const m of seq) { const k = nd.kids.find((c) => c.move === m); if (!k) break; out.push(k); nd = k; }
+      return out;
+    }
+  }
+
+  // ───────── affichage ─────────
+  const root = document.querySelector<HTMLElement>('[data-hero="mcts"]');
+  if (root) start(root);
+
+  function start(root: HTMLElement) {
+    const $ = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
+    const el = {
+      it: $('[data-s-it]'), best: $('[data-s-best]'), lb: $('[data-s-lb]'), depth: $('[data-s-depth]'),
+      tip: $('[data-tip]'), tipMove: $('[data-tip-move]'), tipD: $('[data-tip-d]'), tipN: $('[data-tip-n]'), tipM: $('[data-tip-m]'), tipB: $('[data-tip-b]'),
+      banner: $('[data-banner]'), banAi: $('[data-ban-ai]'), banYou: $('[data-ban-you]'), speedV: $('[data-speed-v]'),
+      newBtn: $('[data-new]'), speedBtn: $('[data-speed]'), helpBtn: $('[data-help]'),
+      sub: $('[data-sub]'), pIt: $('[data-p-it]'), pBud: $('[data-p-bud]'), pHturn: $('[data-p-hturn]'), pLeft: $('[data-p-left]'),
+      pYou: $('[data-p-you]'), pStep: $('[data-p-step]'), pTot: $('[data-p-tot]'), pRes: $('[data-p-res]'), pLb: $('[data-p-lb]'), pBar: $('[data-p-bar]'),
+      glegend: $('[data-glegend]'), tlegend: $('[data-tlegend]'), intro: $('[data-intro]'), lbStat: $('[data-lbstat]'),
+      panel: $('.panel'), hist: $('[data-hist]'), histList: $('[data-hist-list]'),
+    };
+    const all = (q: string) => root.querySelectorAll<HTMLElement>(q);
+    const rLb = all('[data-r-lb]'), rBud = all('[data-r-bud]'), rGap = all('[data-r-gap]');
+    const rGapFr = all('[data-r-gapu-fr]'), rGapEn = all('[data-r-gapu-en]');
+    // historique des améliorations de la meilleure séquence : { de, à, itérations }
+    let history: { from: number; to: number; it: number }[] = [];
+    let histKey = '';
+    const pLb2 = root.querySelectorAll<HTMLElement>('[data-p-lb2]');
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/?$/, '/');
+    const img = (name: string) => { const i = new Image(); i.src = base + SPRITES + name + '.png'; return i; };
+    const spr = { tree: img('DEV_arbre'), fire: img('DEV_arbreenfeu'), burnt: img('DEV_brule'), grass: img('DEV_grass'), wallV: img('DEV_mur1'), wallH: img('DEV_mur2') };
+    const ok = (i: HTMLImageElement) => i.complete && i.naturalWidth > 0;
+    // mode reduced-motion : une seule image, à redessiner quand les sprites arrivent
+    for (const i of Object.values(spr)) i.addEventListener('load', () => { if (C?.reduced && S) draw(C, 0); });
+
+    // lueur orange pré-rendue (pour les cases en feu)
+    const glow = document.createElement('canvas'); glow.width = glow.height = 64;
+    { const g = glow.getContext('2d')!; const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, 'rgba(255,150,70,.55)'); gr.addColorStop(.45, 'rgba(255,90,60,.18)'); gr.addColorStop(1, 'rgba(255,60,80,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+
+    let C: HeroCtx | null = null;
+    let mobile = false;
+    let L!: Level, S!: Search, view!: St;
+    let phase: 'fresh' | 'search' | 'human' | 'compare' | 'play' | 'done' = 'search';
+    let introOpen = false, introT = 0;
+    let phaseT = 0, now = 0, speedI = 0, stepI = 0, nextStep = 0, levelT = 0;
+    let humanT = 0, humanMoves: number[] = [];
+    let ign = new Float32Array(1), brn = new Float32Array(1);
+    let lastMove = -1, lastMoveT = -10;
+    let hover: Node | null = null, hoverCell = -1;
+    let bestSeen = Infinity, bestFlash = -10;
+    // géométrie
+    const G = { x: 0, y: 0, cs: 32, w: 0, h: 0 };
+    const T = { cx: 0, cy: 0, R: 100 };
+
+    const setPhase = (p: typeof phase) => { phase = p; phaseT = now; root.dataset.phase = p; };
+    const speed = () => SPEEDS[speedI];
+    const lang = () => (document.documentElement.dataset.lang === 'en' ? 'en' : 'fr');
+    const cellName = (k: number) => LETTERS[k % L.cols] + (Math.floor(k / L.cols) + 1);
+
+    function resetView() {
+      view = fresh(L);
+      ign = new Float32Array(L.n).fill(-100); brn = new Float32Array(L.n).fill(-100);
+      lastMove = -1;
+    }
+    function stepView(k: number) {
+      const before = view.e.slice();
+      play(L, view, k);
+      for (let i = 0; i < L.n; i++) {
+        if (before[i] === FORET && view.e[i] === EN_FEU) ign[i] = C?.reduced ? -100 : now;
+        if (before[i] === EN_FEU && view.e[i] === BRULE) brn[i] = C?.reduced ? -100 : now;
+      }
+      lastMove = k; lastMoveT = now;
+    }
+    function newLevel() {
+      const g = mobile ? GRID_MOBILE : GRID;
+      L = genLevel(g.cols, g.rows);
+      S = new Search(L, now);
+      resetView();
+      humanMoves = []; hover = null; bestSeen = Infinity; levelT = now; history = [];
+      root.classList.remove('opt');
+      el.banner.classList.remove('on');
+      el.lb.textContent = String(L.bound);
+      el.pLb.textContent = String(L.bound);
+      pLb2.forEach((e) => (e.textContent = String(L.bound)));
+      setPhase(C && !C.reduced && S.iters === 0 && levelCount++ > 0 ? 'fresh' : 'search');
+      if (C) geometry(C);
+      if (C?.reduced) { while (S.iters < budget()) S.iterate(0); }
+      hud();
+    }
+    let levelCount = 0;
+    const budget = () => (mobile ? Math.round(ITER_BUDGET * 0.42) : ITER_BUDGET);
+
+    function hud() {
+      el.it.textContent = S.iters.toLocaleString(lang() === 'fr' ? 'fr-FR' : 'en-US');
+      el.best.textContent = isFinite(S.bestT) ? String(S.bestT) : '…';
+      el.depth.textContent = String(S.maxDepth);
+      root.classList.toggle('opt', S.optimal);
+      // sous-titre de phase
+      const loc = lang() === 'fr' ? 'fr-FR' : 'en-US';
+      el.pIt.textContent = S.iters.toLocaleString(loc);
+      el.pBud.textContent = budget().toLocaleString(loc);
+      el.pHturn.textContent = String(view.turns);
+      el.pLeft.textContent = String(view.forest);
+      el.pYou.textContent = String(humanT);
+      el.pStep.textContent = String(stepI);
+      el.pTot.textContent = isFinite(S.bestT) ? String(S.bestT) : '…';
+      el.pRes.textContent = isFinite(S.bestT) ? String(S.bestT) : '…';
+      // raison de l'arrêt et écart avec la borne
+      const gap = isFinite(S.bestT) ? S.bestT - L.bound : 0;
+      rLb.forEach((e) => (e.textContent = String(L.bound)));
+      rBud.forEach((e) => (e.textContent = budget().toLocaleString(loc)));
+      rGap.forEach((e) => (e.textContent = String(gap)));
+      rGapFr.forEach((e) => (e.textContent = gap > 1 ? 'tours' : 'tour'));
+      rGapEn.forEach((e) => (e.textContent = gap > 1 ? 'turns' : 'turn'));
+      // historique (3 dernières entrées), reconstruit seulement s'il change
+      const fr = lang() === 'fr';
+      const key = lang() + history.map((x) => x.to + ':' + x.it).join(',');
+      if (key !== histKey) {
+        histKey = key;
+        const items = history.slice(-3).map((x, i, a) => {
+          const games = `${x.it.toLocaleString(loc)} ${fr ? 'parties' : 'games'}`;
+          const txt = isNaN(x.from)
+            ? `<b>${x.to}</b> ${fr ? 'tours' : 'turns'} ${fr ? 'après' : 'after'} ${games}`
+            : `${x.from} → <b>${x.to}</b> ${fr ? 'tours à' : 'turns at'} ${games}`;
+          return `<span class="it${i === a.length - 1 && history.length > 1 ? ' new' : ''}">${txt}</span>`;
+        });
+        el.histList.innerHTML = items.join('');
+      }
+      el.hist.classList.toggle('flash', now - bestFlash < 1.2);
+      const k = phase === 'play' ? stepI / Math.max(1, S.bestT) : S.iters / budget();
+      el.pBar.style.width = `${Math.min(100, k * 100).toFixed(1)}%`;
+    }
+
+    function geometry(c: HeroCtx) {
+      const { w, h, dpr } = c;
+      const cols = L.cols, rows = L.rows;
+      // échelle des sprites : multiple de 8 pixels physiques (pixel art quasi régulier)
+      const snap = (v: number) => Math.max(16, Math.floor((v * dpr) / 8) * 8) / dpr;
+      const gl = el.glegend.style, tl = el.tlegend.style, sb = el.sub.style;
+      if (!mobile) {
+        const LW = 160, GAP = 24; // largeur de la légende placée à droite de la grille
+        const top = 236, botSide = h - 160, botBelow = h - 204;
+        // la légende reste à droite de la grille dès que la grille garde des cases d'au moins 22 px
+        const availW = Math.min(w * 0.62, 880) - 92 - LW - GAP;
+        const side = Math.min(availW / cols, (botSide - top) / rows) >= 22;
+        el.glegend.classList.toggle('side', side);
+        const bot = side ? botSide : botBelow;
+        const avail = side ? Math.min(availW / cols, (bot - top) / rows) : Math.min((Math.min(w * 0.46, 700) - 90) / cols, (bot - top) / rows);
+        G.cs = snap(avail);
+        G.w = G.cs * cols; G.h = G.cs * rows;
+        G.x = 92;
+        G.y = Math.round((top + (bot - top - G.h) / 2) * dpr) / dpr;
+        const x0 = side ? G.x + G.w + GAP + LW + 34 : G.x + G.w + 50, x1 = w - 50;
+        T.cx = (x0 + x1) / 2; T.cy = (118 + h - 120) / 2;
+        T.R = Math.max(60, Math.min((x1 - x0) / 2 - 16, (h - 250) / 2 - 8));
+        sb.left = `${G.x - 10}px`; sb.top = '104px';
+        if (side) { gl.left = `${G.x + G.w + GAP}px`; gl.top = `${G.y + 4}px`; gl.width = `${LW}px`; }
+        else { gl.left = `${G.x - 10}px`; gl.top = `${G.y + G.h + 20}px`; gl.width = `${G.w + 20}px`; }
+        tl.left = ''; tl.top = ''; tl.width = '';
+        // encart centré sur l'arbre, mais sous la légende de l'arbre et au-dessus de la barre du bas
+        const ih = el.intro.offsetHeight || 480;
+        el.intro.style.left = `${Math.min(T.cx, w - 50 - 205)}px`;
+        el.intro.style.top = `${Math.max(T.cy, Math.min(212 + ih / 2, h - 96 - ih / 2))}px`;
+      } else {
+        const top = 150;
+        el.glegend.classList.remove('side');
+        G.cs = snap(Math.min((w - 40) / cols, (h * 0.34) / rows));
+        G.w = G.cs * cols; G.h = G.cs * rows;
+        G.x = Math.round(((w - G.w) / 2 + 6) * dpr) / dpr; G.y = top;
+        gl.left = `${G.x - 10}px`; gl.top = `${G.y + G.h + 14}px`; gl.width = `${G.w + 20}px`;
+        const subTop = G.y + G.h + 14 + el.glegend.offsetHeight + 12;
+        sb.left = ''; sb.top = `${subTop}px`;
+        const y0 = subTop + Math.max(el.sub.offsetHeight, 104) + 12, y1 = h - el.panel.offsetHeight - 16 - el.tlegend.offsetHeight - 18;
+        T.cx = w / 2; T.cy = (y0 + y1) / 2;
+        T.R = Math.max(40, Math.min(w / 2 - 22, (y1 - y0) / 2));
+        tl.left = '16px'; tl.width = `${w - 32}px`; tl.top = `${T.cy + T.R + 10}px`;
+        el.intro.style.left = '50%'; el.intro.style.top = '50%';
+      }
+      el.banner.style.left = `${G.x + G.w / 2}px`; el.banner.style.top = `${G.y + G.h / 2}px`;
+    }
+
+    // mise en page radiale : angle proportionnel aux visites, rayon selon la profondeur
+    function layoutTree(snapNow: boolean, dt: number) {
+      const D = Math.max(4, S.maxDepth + 1);
+      const rad = (d: number) => (d === 0 ? 0 : T.R * (0.16 + 0.84 * (d - 1) / Math.max(1, D - 1)));
+      const rec = (nd: Node, a0: number, a1: number) => {
+        nd.tth = (a0 + a1) / 2; nd.tr = rad(nd.depth);
+        if (!nd.kids.length) return;
+        let tot = 0;
+        for (const k of nd.kids) tot += Math.pow(k.n + 1, 0.8);
+        let a = a0;
+        for (const k of nd.kids) { const span = ((a1 - a0) * Math.pow(k.n + 1, 0.8)) / tot; rec(k, a, a + span); a += span; }
+      };
+      rec(S.root, -Math.PI / 2, Math.PI * 1.5);
+      const f = snapNow ? 1 : 1 - Math.exp(-dt * 7);
+      for (const nd of S.nodes) {
+        nd.th += (nd.tth - nd.th) * f; nd.r += (nd.tr - nd.r) * f;
+        nd.x = T.cx + Math.cos(nd.th) * nd.r; nd.y = T.cy + Math.sin(nd.th) * nd.r;
+      }
+      return rad;
+    }
+
+    const lerpC = (a: number[], b: number[], k: number) => a.map((v, i) => Math.round(v + (b[i] - v) * k));
+    // échelle de qualité à fort contraste : bleu-violet sombre -> violet -> cyan -> cyan vif -> blanc-vert
+    const Q_STOPS: [number, number[]][] = [[0, [40, 30, 96]], [0.35, [100, 74, 214]], [0.62, [79, 196, 255]], [0.84, [96, 242, 255]], [1, [215, 255, 232]]];
+    const ramp = (v: number) => {
+      for (let i = 1; i < Q_STOPS.length; i++) if (v <= Q_STOPS[i][0]) {
+        const [a, ca] = Q_STOPS[i - 1], [b, cb] = Q_STOPS[i];
+        return lerpC(ca, cb, (v - a) / (b - a));
+      }
+      return Q_STOPS[Q_STOPS.length - 1][1];
+    };
+    // qualité relative (0..1) de chaque nœud, recalculée à chaque frame sur l'ensemble de l'arbre
+    // qualité = rang (percentile) de la valeur du nœud dans tout l'arbre, puis courbe gamma :
+    // seuls les meilleurs coups ressortent, quelle que soit la dispersion des scores
+    let qual = new Float32Array(1024), qualFrame = 0, qualCount = 0;
+    let order: number[] = [];
+    function computeQuality() {
+      const n = S.nodes.length;
+      if (qual.length < n) { const q2 = new Float32Array(n * 2); q2.set(qual); qual = q2; }
+      if (qualFrame++ % 6 !== 0 && n - qualCount < 200) return; // recalcul toutes les 6 frames
+      qualCount = n;
+      const vals = new Float32Array(n);
+      order.length = 0;
+      for (let i = 1; i < n; i++) { const nd = S.nodes[i]; vals[i] = S.value(nd) + Math.min(nd.n, 50) * 1e-4; order.push(i); }
+      order.sort((a, b) => vals[a] - vals[b]);
+      const m = Math.max(1, order.length - 1);
+      order.forEach((i, r) => (qual[i] = Math.pow(r / m, QUALITY_GAMMA)));
+    }
+    // halo pré-rendu pour les meilleurs nœuds
+    const halo = document.createElement('canvas'); halo.width = halo.height = 48;
+    { const g = halo.getContext('2d')!; const gr = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+      gr.addColorStop(0, 'rgba(190,255,230,.75)'); gr.addColorStop(.35, 'rgba(96,242,255,.28)'); gr.addColorStop(1, 'rgba(79,196,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 48, 48); }
+    const rgba = (c: number[], a: number) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+
+    function drawTree(ctx: CanvasRenderingContext2D, rad: (d: number) => number) {
+      const D = Math.max(4, S.maxDepth + 1);
+      // halo de fond et anneaux de profondeur
+      const bg = ctx.createRadialGradient(T.cx, T.cy, 0, T.cx, T.cy, T.R * 1.15);
+      bg.addColorStop(0, 'rgba(120,80,255,.10)'); bg.addColorStop(.6, 'rgba(79,227,255,.025)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(T.cx, T.cy, T.R * 1.15, 0, Math.PI * 2); ctx.fill();
+      ctx.save();
+      ctx.setLineDash([2, 6]); ctx.lineWidth = 1;
+      ctx.font = `500 9px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let d = 1; d <= D; d++) {
+        const r = rad(d);
+        ctx.strokeStyle = `rgba(201,184,255,${d === 1 ? 0.1 : 0.06})`;
+        ctx.beginPath(); ctx.arc(T.cx, T.cy, r, 0, Math.PI * 2); ctx.stroke();
+        if (d <= S.maxDepth && (d % 2 === 1 || D < 9) && !mobile) {
+          ctx.fillStyle = 'rgba(15,12,26,.9)'; ctx.fillRect(T.cx + r - 8, T.cy - 6, 16, 12);
+          ctx.fillStyle = 'rgba(201,184,255,.42)'; ctx.fillText('d' + d, T.cx + r, T.cy);
+        }
+      }
+      ctx.restore();
+
+      // arêtes, regroupées par teinte et opacité (quelques chemins seulement)
+      computeQuality();
+      const NB = 8, NA = 3;
+      const paths: Path2D[] = Array.from({ length: NB * NA }, () => new Path2D());
+      const lnMax = Math.log(S.root.n + 2);
+      for (let i = 1; i < S.nodes.length; i++) {
+        const nd = S.nodes[i], p = nd.parent!;
+        const b = Math.min(NB - 1, Math.floor(qual[i] * NB));
+        const a = Math.min(NA - 1, Math.floor((Math.log(nd.n + 1) / lnMax) * NA * 1.6));
+        const path = paths[b * NA + a];
+        // courbe de dendrogramme : point de contrôle à l'angle de l'enfant, au rayon du parent
+        const qx = T.cx + Math.cos(nd.th) * p.r, qy = T.cy + Math.sin(nd.th) * p.r;
+        path.moveTo(p.x, p.y); path.quadraticCurveTo(qx, qy, nd.x, nd.y);
+      }
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let b = 0; b < NB; b++) for (let a = 0; a < NA; a++) {
+        const q = b / (NB - 1);
+        // les coups médiocres sont presque effacés, les bons nettement plus visibles
+        ctx.strokeStyle = rgba(ramp(q), Math.min(0.95, [0.05, 0.16, 0.36][a] * (0.5 + 1.7 * q)));
+        ctx.lineWidth = [0.5, 0.75, 1.05][a] * (0.7 + 1.1 * q);
+        ctx.stroke(paths[b * NA + a]);
+      }
+      // nœuds
+      const dots: Path2D[] = Array.from({ length: NB }, () => new Path2D());
+      const glows: Node[] = [];
+      const sz = Math.max(0.5, Math.min(1, T.R / 230)); // petits arbres (mobile) : points et lueurs réduits
+      for (let i = 1; i < S.nodes.length; i++) {
+        const nd = S.nodes[i], q = qual[i];
+        // peu visités et médiocres : arête seule, sinon les anneaux saturent
+        if (nd.n < 4 && !(q > 0.6 && nd.n >= 2)) continue;
+        // taille proportionnelle à la qualité (et un peu aux visites)
+        const r = sz * (0.45 + 3.6 * q * q) * Math.min(1.25, 0.7 + Math.log(nd.n + 1) * 0.09) * Math.min(1, (now - nd.born) * 4 + 0.15);
+        const b = Math.min(NB - 1, Math.floor(q * NB));
+        dots[b].moveTo(nd.x + r, nd.y); dots[b].arc(nd.x, nd.y, r, 0, Math.PI * 2);
+        if (q >= GLOW_FROM && nd.n >= 3) glows.push(nd);
+      }
+      if (glows.length > GLOW_MAX) { glows.sort((a, b) => qual[b.idx] - qual[a.idx]); glows.length = GLOW_MAX; }
+      // lueur des meilleurs coups (sous les points)
+      for (const nd of glows) {
+        const k = (qual[nd.idx] - GLOW_FROM) / (1 - GLOW_FROM), R = sz * (5 + 8 * k);
+        ctx.globalAlpha = 0.25 + 0.45 * k;
+        ctx.drawImage(halo, nd.x - R, nd.y - R, R * 2, R * 2);
+      }
+      ctx.globalAlpha = 1;
+      for (let b = 0; b < NB; b++) { const q = b / (NB - 1); ctx.fillStyle = rgba(ramp(q), 0.3 + 0.7 * q); ctx.fill(dots[b]); }
+      ctx.restore();
+
+      // chemins mis en valeur : meilleure séquence (feu), coups du joueur (lavande), nœud survolé (blanc)
+      const strokeChain = (chain: Node[], col: number[], width: number, blur: number, alpha: number) => {
+        if (!chain.length) return;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.shadowColor = rgba(col, 0.9); ctx.shadowBlur = blur;
+        ctx.strokeStyle = rgba(col, alpha); ctx.lineWidth = width; ctx.lineCap = 'round';
+        ctx.beginPath();
+        let p = S.root;
+        for (const nd of chain) {
+          const qx = T.cx + Math.cos(nd.th) * p.r, qy = T.cy + Math.sin(nd.th) * p.r;
+          ctx.moveTo(p.x, p.y); ctx.quadraticCurveTo(qx, qy, nd.x, nd.y); p = nd;
+        }
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        for (const nd of chain) { ctx.fillStyle = rgba(col, 0.95); ctx.beginPath(); ctx.arc(nd.x, nd.y, 2.6, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      };
+      const bestChain = S.follow(S.bestSeq);
+      const flash = Math.max(0, 1 - (now - bestFlash) * 1.5);
+      strokeChain(bestChain, lerpC(C_FIRE, [255, 230, 190], flash), 1.8 + flash * 1.5, 12 + flash * 10, 0.9);
+      if (humanMoves.length) strokeChain(S.follow(humanMoves), C_MID, 1.4, 8, 0.75);
+      if (hover) {
+        const chain: Node[] = [];
+        for (let p: Node | null = hover; p && p.parent; p = p.parent) chain.unshift(p);
+        strokeChain(chain, [255, 255, 255], 1.3, 10, 0.85);
+        ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(hover.x, hover.y, 7, 0, Math.PI * 2); ctx.stroke();
+      }
+      // pendant la partie de l'IA : le nœud du tour en cours pulse
+      if ((phase === 'play' || phase === 'done') && stepI > 0 && bestChain[stepI - 1]) {
+        const nd = bestChain[stepI - 1], k = (now - lastMoveT) * 2.2;
+        ctx.strokeStyle = rgba(C_PINK, Math.max(0, 0.9 - k * 0.6)); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(nd.x, nd.y, 4 + k * 10, 0, Math.PI * 2); ctx.stroke();
+      }
+      // racine
+      const pr = 4 + Math.sin(now * 3) * 0.8;
+      ctx.save();
+      ctx.shadowColor = 'rgba(79,227,255,.9)'; ctx.shadowBlur = 14;
+      ctx.fillStyle = '#e9fbff'; ctx.beginPath(); ctx.arc(S.root.x, S.root.y, pr, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(79,227,255,.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(S.root.x, S.root.y, pr + 5, 0, Math.PI * 2); ctx.stroke();
+    }
+
+    // positions des « vrais » coups d'une séquence (on ignore les coups sans effet)
+    function effectiveMoves(seq: number[]): { k: number; turn: number }[] {
+      const s = fresh(L), out: { k: number; turn: number }[] = [];
+      seq.forEach((k, i) => {
+        if (s.forest === 0) return;
+        const prev = s.e.slice();
+        play(L, s, k);
+        // la case choisie ne s'est allumée que grâce au clic si aucune voisine n'était en feu
+        let touche = false;
+        for (const v of L.adj[k]) if (prev[v] === EN_FEU) touche = true;
+        if (prev[k] === FORET && !touche) out.push({ k, turn: i + 1 });
+      });
+      return out;
+    }
+
+    function drawGrid(ctx: CanvasRenderingContext2D) {
+      const { x: gx, y: gy, cs } = G;
+      const s = cs / 32;
+      const fade = Math.min(1, (now - levelT) * 2.5);
+      ctx.save();
+      ctx.globalAlpha = fade;
+      // cadre doux
+      ctx.save();
+      ctx.shadowColor = 'rgba(120,80,255,.35)'; ctx.shadowBlur = 40;
+      ctx.fillStyle = '#0d0b16';
+      roundRect(ctx, gx - 10, gy - 10, G.w + 20, G.h + 20, 16); ctx.fill();
+      ctx.restore();
+      ctx.strokeStyle = 'rgba(201,184,255,.18)'; ctx.lineWidth = 1;
+      roundRect(ctx, gx - 10.5, gy - 10.5, G.w + 21, G.h + 21, 16); ctx.stroke();
+
+      ctx.imageSmoothingEnabled = false; // pixel art net (équivalent canvas de image-rendering: pixelated)
+      ctx.save();
+      roundRect(ctx, gx, gy, G.w, G.h, 6); ctx.clip();
+      for (let k = 0; k < L.n; k++) {
+        const x = gx + (k % L.cols) * cs, y = gy + Math.floor(k / L.cols) * cs;
+        if (ok(spr.grass)) ctx.drawImage(spr.grass, x, y, cs, cs); else { ctx.fillStyle = '#1d4a2a'; ctx.fillRect(x, y, cs, cs); }
+      }
+      // voile violet pour fondre l'herbe dans la DA
+      ctx.fillStyle = 'rgba(24,14,52,.5)'; ctx.fillRect(gx, gy, G.w, G.h);
+      for (let k = 0; k < L.n; k++) {
+        const x = gx + (k % L.cols) * cs, y = gy + Math.floor(k / L.cols) * cs;
+        const st = view.e[k];
+        if (st === BRULE) {
+          ctx.fillStyle = 'rgba(12,8,18,.5)'; ctx.fillRect(x, y, cs, cs);
+          const a = Math.min(1, (now - brn[k]) * 2.2);
+          if (a < 1 && ok(spr.fire)) { ctx.globalAlpha = fade * (1 - a); ctx.drawImage(spr.fire, x, y, cs, cs); }
+          ctx.globalAlpha = fade * a * 0.9;
+          if (ok(spr.burnt)) ctx.drawImage(spr.burnt, x, y, cs, cs);
+          ctx.globalAlpha = fade;
+        } else if (st === EN_FEU) {
+          const a = Math.min(1, (now - ign[k]) * 3.5);
+          const pop = 1 + (1 - a) * 0.18;
+          const fl = 1 + Math.sin(now * 11 + k * 1.7) * 0.025;
+          const ww = cs * pop, hh = cs * pop * fl;
+          if (a < 1 && ok(spr.tree)) { ctx.globalAlpha = fade * (1 - a); ctx.drawImage(spr.tree, x, y, cs, cs); ctx.globalAlpha = fade; }
+          if (ok(spr.fire)) ctx.drawImage(spr.fire, x + (cs - ww) / 2, y + cs - hh, ww, hh);
+        } else if (ok(spr.tree)) ctx.drawImage(spr.tree, x, y, cs, cs);
+      }
+      // lueur du feu (additive)
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < L.n; k++) {
+        if (view.e[k] !== EN_FEU) continue;
+        const x = gx + (k % L.cols + 0.5) * cs, y = gy + (Math.floor(k / L.cols) + 0.5) * cs;
+        const fl = 0.75 + 0.25 * Math.sin(now * 7 + k * 2.3);
+        const R = cs * 1.25 * fl;
+        ctx.globalAlpha = fade * Math.min(1, (now - ign[k]) * 3) * 0.9;
+        ctx.drawImage(glow, x - R, y - R, R * 2, R * 2);
+      }
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = fade;
+      // murs : horizontaux (mur2, entre deux lignes) puis verticaux (mur1, entre deux colonnes)
+      for (let k = 0; k < L.n; k++) {
+        const c = k % L.cols, l = Math.floor(k / L.cols);
+        if (l + 1 < L.rows && !L.linkD[k]) {
+          const x = gx + c * cs, y = gy + (l + 1) * cs - 7.5 * s;
+          if (ok(spr.wallH)) ctx.drawImage(spr.wallH, x, y, cs, 15 * s); else { ctx.fillStyle = '#c8673a'; ctx.fillRect(x, y, cs, 15 * s); }
+        }
+      }
+      for (let k = 0; k < L.n; k++) {
+        const c = k % L.cols, l = Math.floor(k / L.cols);
+        if (c + 1 < L.cols && !L.linkR[k]) {
+          const x = gx + (c + 1) * cs - 2.5 * s, y = gy + l * cs - 5 * s;
+          if (ok(spr.wallV)) ctx.drawImage(spr.wallV, x, y, 5 * s, 42 * s); else { ctx.fillStyle = '#c8673a'; ctx.fillRect(x, y, 5 * s, 42 * s); }
+        }
+      }
+      ctx.restore();
+      ctx.imageSmoothingEnabled = true;
+
+      // coordonnées
+      ctx.font = `500 9.5px ${MONO}`; ctx.fillStyle = 'rgba(201,184,255,.38)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let c = 0; c < L.cols; c++) ctx.fillText(LETTERS[c], gx + (c + 0.5) * cs, gy - 22);
+      ctx.textAlign = 'right';
+      for (let l = 0; l < L.rows; l++) ctx.fillText(String(l + 1), gx - 18, gy + (l + 0.5) * cs);
+
+      // repères : meilleure branche (cyan) pendant la recherche, chemin survolé (blanc)
+      const marker = (k: number, label: string, col: number[], strong: number) => {
+        const cx = gx + (k % L.cols + 0.5) * cs, cy = gy + (Math.floor(k / L.cols) + 0.5) * cs;
+        ctx.save();
+        ctx.shadowColor = rgba(col, 0.9); ctx.shadowBlur = 10;
+        ctx.strokeStyle = rgba(col, 0.95); ctx.lineWidth = 1.6 + strong;
+        ctx.beginPath(); ctx.arc(cx, cy, cs * 0.38, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+        const bx = cx + cs * 0.27, by = cy - cs * 0.27, br = Math.max(7, cs * 0.17);
+        ctx.fillStyle = 'rgba(12,9,22,.92)'; ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = rgba(col, 0.9); ctx.lineWidth = 1; ctx.stroke();
+        ctx.fillStyle = rgba(col, 1); ctx.font = `700 ${Math.round(br * 1.15)}px ${MONO}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(label, bx, by + 0.5);
+      };
+      if (hover) {
+        const chain: number[] = [];
+        for (let p: Node | null = hover; p && p.parent; p = p.parent) chain.unshift(p.move);
+        chain.forEach((k, i) => marker(k, String(i + 1), i === chain.length - 1 ? C_FIRE : [255, 255, 255], i === chain.length - 1 ? 0.8 : 0));
+      } else if ((phase === 'search' || phase === 'fresh') && S.bestSeq.length) {
+        const pulse = 0.5 + 0.5 * Math.sin(now * 3);
+        for (const m of effectiveMoves(S.bestSeq)) marker(m.k, String(m.turn), lerpC(C_HIGH, [210, 250, 255], pulse * 0.4), 0);
+      } else if (phase === 'play') {
+        for (const m of effectiveMoves(S.bestSeq)) if (m.turn > stepI) marker(m.k, String(m.turn), C_HIGH, 0);
+      }
+      // dernier coup joué : onde orange
+      if (lastMove >= 0 && now - lastMoveT < 1.2) {
+        const k = (now - lastMoveT) / 1.2;
+        const cx = gx + (lastMove % L.cols + 0.5) * cs, cy = gy + (Math.floor(lastMove / L.cols) + 0.5) * cs;
+        ctx.strokeStyle = rgba(C_FIRE, 0.9 * (1 - k)); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(cx, cy, cs * (0.3 + k * 0.9), 0, Math.PI * 2); ctx.stroke();
+      }
+      // case survolée (jouable)
+      if (hoverCell >= 0 && canPlay() && view.e[hoverCell] === FORET) {
+        const x = gx + (hoverCell % L.cols) * cs, y = gy + Math.floor(hoverCell / L.cols) * cs;
+        ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = 1.5;
+        roundRect(ctx, x + 2, y + 2, cs - 4, cs - 4, 6); ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
+
+    const canPlay = () => !introOpen && (phase === 'search' || phase === 'human' || phase === 'fresh');
+    function cellAt(x: number, y: number) {
+      const c = Math.floor((x - G.x) / G.cs), l = Math.floor((y - G.y) / G.cs);
+      return c >= 0 && l >= 0 && c < L.cols && l < L.rows ? l * L.cols + c : -1;
+    }
+    function nodeAt(x: number, y: number): Node | null {
+      if (Math.hypot(x - T.cx, y - T.cy) > T.R + 20) return null;
+      let best: Node | null = null, bd = (mobile ? 18 : 11) ** 2;
+      for (let i = 1; i < S.nodes.length; i++) {
+        const nd = S.nodes[i], d = (nd.x - x) ** 2 + (nd.y - y) ** 2;
+        if (d < bd) { bd = d; best = nd; }
+      }
+      return best;
+    }
+    function showTip(nd: Node | null) {
+      if (!nd) { el.tip.classList.remove('on'); return; }
+      el.tipMove.textContent = cellName(nd.move);
+      el.tipD.textContent = String(nd.depth);
+      el.tipN.textContent = String(nd.n);
+      el.tipM.textContent = nd.n ? (nd.sum / nd.n).toFixed(1) : '-';
+      el.tipB.textContent = isFinite(nd.best) ? String(nd.best) : '-';
+      const tw = el.tip.offsetWidth || 180;
+      const left = nd.x + 14 + tw > (C?.w ?? 0) - 20 ? nd.x - 14 - tw : nd.x + 14;
+      el.tip.style.transform = `translate(${Math.round(left)}px, ${Math.round(nd.y - 40)}px)`;
+      el.tip.classList.add('on');
+    }
+    function showBanner(withYou: boolean) {
+      el.banAi.textContent = String(S.bestT);
+      el.banYou.textContent = String(humanT);
+      el.banner.classList.toggle('withyou', withYou);
+      el.banner.classList.toggle('isopt', S.optimal);
+      el.banner.classList.add('on');
+    }
+
+    // boutons : on bloque le pointerdown pour que runHero ne le prenne pas pour un clic sur le canvas
+    for (const b of [el.newBtn, el.speedBtn, el.helpBtn, el.intro, el.lbStat, ...all('a.fire')]) b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    el.lbStat.addEventListener('click', () => el.lbStat.classList.toggle('open'));
+    // encart d'explication : ouvert au premier passage, la partie est en pause tant qu'il est affiché
+    function setIntro(open: boolean) {
+      if (open === introOpen) return;
+      introOpen = open;
+      el.intro.hidden = !open;
+      if (open) introT = now;
+      else {
+        const pause = now - introT; // décale les minuteries pour reprendre là où on en était
+        phaseT += pause; nextStep += pause; lastMoveT += pause;
+        try { localStorage.setItem(INTRO_KEY, '1'); } catch (e) {}
+      }
+    }
+    let seen = false;
+    try { seen = localStorage.getItem(INTRO_KEY) === '1'; } catch (e) {}
+    el.intro.hidden = true;
+    if (!seen) setIntro(true);
+    root.querySelector('[data-intro-go]')!.addEventListener('click', () => setIntro(false));
+    root.querySelector('[data-intro-close]')!.addEventListener('click', () => setIntro(false));
+    el.helpBtn.addEventListener('click', () => setIntro(!introOpen));
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') setIntro(false); });
+    let touch = false;
+    root.addEventListener('pointerdown', (e) => { touch = e.pointerType !== 'mouse'; }, true);
+    el.newBtn.addEventListener('click', () => { newLevel(); if (C?.reduced) draw(C, 0); });
+    el.speedBtn.addEventListener('click', () => { speedI = (speedI + 1) % SPEEDS.length; el.speedV.textContent = '×' + speed(); });
+
+    function update(dt: number) {
+      if (introOpen) return;
+      if (phase === 'fresh') { if (now - phaseT > FRESH_S) setPhase('search'); return; }
+      if (phase === 'search' || phase === 'human' || phase === 'compare') {
+        if (S.iters < budget()) {
+          const t0 = performance.now();
+          const per = (mobile ? ITER_PER_FRAME / 2 : ITER_PER_FRAME) * speed();
+          for (let i = 0; i < per && S.iters < budget(); i++) {
+            S.iterate(now);
+            if ((i & 7) === 7 && performance.now() - t0 > FRAME_BUDGET_MS) break;
+          }
+        }
+        if (S.bestT < bestSeen) {
+          if (isFinite(bestSeen)) { bestFlash = now; history.push({ from: bestSeen, to: S.bestT, it: S.iters }); }
+          else history.push({ from: NaN, to: S.bestT, it: S.iters });
+          bestSeen = S.bestT;
+        }
+        const done = S.iters >= budget() || (S.optimal && S.iters >= (mobile ? ITER_MIN_OPT / 2 : ITER_MIN_OPT));
+        if (phase === 'search' && done && now - phaseT > 0.3) { resetView(); stepI = 0; nextStep = now + 0.8 / speed(); setPhase('play'); }
+        if (phase === 'compare' && now - phaseT > HOLD_S) {
+          el.banner.classList.remove('on'); resetView(); stepI = 0; nextStep = now + 0.5; setPhase('play');
+        }
+      } else if (phase === 'play') {
+        if (now >= nextStep) {
+          if (view.forest > 0 && stepI < S.bestSeq.length) { stepView(S.bestSeq[stepI]); stepI++; nextStep = now + STEP_S / speed(); }
+          else if (now - lastMoveT > 0.6 / speed()) { showBanner(humanMoves.length > 0 && humanT > 0); setPhase('done'); }
+        }
+      } else if (phase === 'done') {
+        if (now - phaseT > HOLD_S + 0.4) newLevel();
+      }
+      void dt;
+    }
+
+    // apparition du bandeau de score pilotée ici (plus fiable qu'une transition CSS pendant les calculs)
+    let banA = 0;
+    function bannerFade(dt: number, instant: boolean) {
+      const on = el.banner.classList.contains('on') ? 1 : 0;
+      banA = instant ? on : banA + (on - banA) * Math.min(1, dt * 9);
+      el.banner.style.opacity = banA.toFixed(3);
+      el.banner.style.transform = `translate(-50%, -50%) scale(${(0.96 + 0.04 * banA).toFixed(4)})`;
+    }
+
+    function draw(c: HeroCtx, dt: number) {
+      bannerFade(dt, c.reduced);
+      const { ctx, w, h } = c;
+      ctx.clearRect(0, 0, w, h);
+      const rad = layoutTree(c.reduced, dt);
+      drawTree(ctx, rad);
+      drawGrid(ctx);
+    }
+
+    runHero(root, {
+      init(c) {
+        const first = !C;
+        C = c;
+        const m = c.w < 860;
+        if (first || m !== mobile) { mobile = m; newLevel(); }
+        geometry(c);
+        layoutTree(true, 0);
+        hud();
+      },
+      click(c, x, y) {
+        const nd = nodeAt(x, y);
+        if (nd) { hover = nd; showTip(nd); return; }
+        if (touch && hover) { hover = null; showTip(null); }
+        const k = cellAt(x, y);
+        if (k < 0 || !canPlay() || view.e[k] !== FORET) return;
+        if (phase === 'search' || phase === 'fresh') { setPhase('human'); resetView(); humanMoves = []; }
+        humanMoves.push(k);
+        stepView(k);
+        if (view.forest === 0) {
+          humanT = view.turns;
+          if (c.reduced) { showBanner(true); setPhase('done'); }
+          else { showBanner(true); setPhase('compare'); }
+        }
+      },
+      frame(c, t, dt) {
+        if (!S) return; // init pas encore appelé (ResizeObserver asynchrone)
+        now = c.reduced ? 1000 : t;
+        if (!c.reduced) {
+          update(dt);
+          // survol (souris) ; au toucher, le tap du clic fixe la sélection
+          if (c.ptr.active && !touch) {
+            // le nœud survolé reste accroché tant que le pointeur en est proche (l'arbre bouge)
+            const keep = hover && (hover.x - c.ptr.x) ** 2 + (hover.y - c.ptr.y) ** 2 < 22 * 22;
+            const nd = keep ? hover : nodeAt(c.ptr.x, c.ptr.y);
+            if (nd !== hover && (nd || c.ptr.x > 0)) { hover = nd; showTip(nd); }
+            else if (hover) showTip(hover);
+            hoverCell = cellAt(c.ptr.x, c.ptr.y);
+            root.style.cursor = hover || (hoverCell >= 0 && canPlay() && view.e[hoverCell] === FORET) ? 'pointer' : 'default';
+          } else if (!touch && hover) { hover = null; showTip(null); hoverCell = -1; }
+          else if (touch && hover) showTip(hover);
+          hud();
+        } else hud();
+        draw(c, dt);
+      },
+    });
+  }
+</script>

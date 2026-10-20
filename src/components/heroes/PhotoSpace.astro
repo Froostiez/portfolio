@@ -1,0 +1,935 @@
+---
+// Galerie 3D : la caméra est au centre d'une bulle, les photos de Ferdi l'entourent sur une sphère brumeuse.
+// Glisser pour tourner à 360°, molette / pincer / mode Zoom pour avancer vers les photos, clic pour voler vers une photo et l'afficher en grand
+// (version HD chargée à la demande). three.js, textures chargées progressivement (celles du champ de vision d'abord).
+import HeroShell from './HeroShell.astro';
+import { photos } from '../../content/photos';
+import { url } from '../../utils';
+
+const data = photos.map((p) => ({ f: p.file, w: p.w, h: p.h, fr: p.alt.fr, en: p.alt.en, place: p.place ?? '' }));
+const n = photos.length;
+const pad = (v: number) => String(v).padStart(2, '0');
+---
+<HeroShell name="photospace" scrim={false}>
+  <div class="hud">
+    <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+    <span class="corner bl" aria-hidden="true"></span>
+    <span class="lbl l-tl" aria-hidden="true">GALERIE / 3D<br /><span class="sub">THREE.JS · <span data-l="fr">BULLE</span><span data-l="en">BUBBLE</span> · 360°</span></span>
+    <div class="lbl l-tr" aria-hidden="true">
+      <span data-count>01 / {pad(n)}</span><br /><span data-head>CAP 000° · INCL +00°</span>
+      <svg class="compass" viewBox="-30 -30 60 60" width="60" height="60">
+        <circle r="26" class="ring" />
+        <circle r="19" class="ring in" />
+        <g data-dots></g>
+        <path data-wedge class="wedge" d="" />
+        <text y="-21" class="north">N</text>
+        <circle r="1.6" class="hub" />
+      </svg>
+    </div>
+
+    <div class="tools" data-tools>
+      <div class="seg" role="group" aria-label="Mode" title="Maj + glisser : l’autre mode / Shift + drag: the other mode">
+        <button type="button" class="seg-b on" data-mode="rotate" aria-pressed="true">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.8-4.1" /><path d="M12.2 1.6v2.6H9.6" /></svg>
+          <span data-l="fr">Tourner</span><span data-l="en">Rotate</span>
+        </button>
+        <button type="button" class="seg-b" data-mode="zoom" aria-pressed="false">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" /><path d="M10.4 10.4 14 14M7 5v4M5 7h4" /></svg>
+          <span data-l="fr">Zoom</span><span data-l="en">Zoom</span>
+        </button>
+      </div>
+      <div class="zgrp">
+        <button type="button" class="tb" data-zout aria-label="Dézoomer / zoom out">−</button>
+        <span class="zv" data-zv aria-hidden="true">1.0×</span>
+        <button type="button" class="tb" data-zin aria-label="Zoomer / zoom in">+</button>
+      </div>
+      <button type="button" class="tb wide" data-recenter aria-label="Recentrer / recenter">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2" /><path d="M8 1v3M8 12v3M1 8h3M12 8h3" /></svg>
+        <span class="lab"><span data-l="fr">Recentrer</span><span data-l="en">Recenter</span></span>
+      </button>
+    </div>
+
+    <div class="intro" data-intro>
+      <span class="kicker"><span data-l="fr">Photographie · {n} images</span><span data-l="en">Photography · {n} images</span></span>
+      <h2><span data-l="fr">Galerie 3D</span><span data-l="en">3D gallery</span></h2>
+      <p class="hint">
+        <span data-l="fr"><span class="h m r">glisser pour tourner · molette pour zoomer · clic pour ouvrir</span><span class="h m z">glisser ↑↓ pour zoomer · Maj+glisser pour tourner · clic pour ouvrir</span><span class="h t r">un doigt pour tourner · pincer pour zoomer · toucher pour ouvrir</span><span class="h t z">glisser ↑↓ pour zoomer · deux doigts pour tourner · toucher pour ouvrir</span></span>
+        <span data-l="en"><span class="h m r">drag to look around · scroll to zoom · click to open</span><span class="h m z">drag ↑↓ to zoom · shift+drag to look around · click to open</span><span class="h t r">one finger to look around · pinch to zoom · tap to open</span><span class="h t z">drag ↑↓ to zoom · two fingers to look around · tap to open</span></span>
+      </p>
+      <a class="link" href={url('/photo')}><span data-l="fr">Voir la page Photo</span><span data-l="en">See the Photo page</span> <span aria-hidden="true">→</span></a>
+      <a class="link alt" href={url('/lab/zoom-infini')}><span data-l="fr">Version zoom infini</span><span data-l="en">Infinite zoom version</span> <span aria-hidden="true">→</span></a>
+    </div>
+
+    <div class="cap" data-cap aria-live="polite">
+      <div class="cap-meta"><span data-cap-n>01 / {pad(n)}</span><span class="hd" data-hd>HD</span></div>
+      <p class="cap-text" data-cap-text></p>
+      <div class="cap-nav">
+        <button type="button" class="btn" data-prev aria-label="Photo précédente / previous photo">←</button>
+        <button type="button" class="btn wide" data-close><span data-l="fr">Fermer</span><span data-l="en">Close</span></button>
+        <button type="button" class="btn" data-next aria-label="Photo suivante / next photo">→</button>
+      </div>
+    </div>
+    <button type="button" class="x" data-x aria-label="Fermer / close">×</button>
+  </div>
+  <div class="nogl-msg">
+    <p><span data-l="fr">WebGL n’est pas disponible sur cet appareil.</span><span data-l="en">WebGL is not available on this device.</span></p>
+    <a class="link" href={url('/photo')}><span data-l="fr">Voir les photos</span><span data-l="en">See the photos</span> <span aria-hidden="true">→</span></a>
+  </div>
+  <script type="application/json" data-photos set:html={JSON.stringify({ base: url('/images/photo/'), list: data })}></script>
+  <slot />
+</HeroShell>
+
+<style>
+  :global(.hero-shell[data-hero="photospace"]) { background: radial-gradient(ellipse at 50% 48%, #1b1534, #0b0a12 68%); cursor: grab; }
+  :global(.hero-shell[data-hero="photospace"].grabbing) { cursor: grabbing; }
+  :global(.hero-shell[data-hero="photospace"].mode-zoom) { cursor: zoom-in; }
+  :global(.hero-shell[data-hero="photospace"].mode-zoom.grabbing) { cursor: ns-resize; }
+  .hud { position: absolute; inset: 0; font: 500 11px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .14em; color: rgba(201, 184, 255, .62); }
+  .corner { position: absolute; width: 18px; height: 18px; border: 0 solid rgba(201, 184, 255, .4); transition: opacity .5s ease; }
+  .tl { left: 24px; top: 88px; border-left-width: 1px; border-top-width: 1px; }
+  .tr { right: 24px; top: 88px; border-right-width: 1px; border-top-width: 1px; }
+  .bl { left: 24px; bottom: 24px; border-left-width: 1px; border-bottom-width: 1px; }
+  .lbl { position: absolute; white-space: nowrap; transition: opacity .5s ease; }
+  .l-tl { left: 50px; top: 92px; }
+  .l-tr { right: 50px; top: 92px; text-align: right; }
+  [data-count] { color: #f3eff8; }
+
+  /* boussole : anneau fixe (N en haut), cône du champ de vision qui tourne, un point par photo */
+  .compass { display: block; margin: 10px 0 0 auto; overflow: visible; }
+  .ring { fill: rgba(15, 14, 20, .35); stroke: rgba(201, 184, 255, .32); stroke-width: .8; }
+  .ring.in { fill: none; stroke: rgba(201, 184, 255, .12); stroke-dasharray: 1.5 2.5; }
+  .wedge { fill: rgba(143, 240, 255, .16); stroke: rgba(143, 240, 255, .6); stroke-width: .7; stroke-linejoin: round; }
+  .north { fill: rgba(201, 184, 255, .8); font-size: 6.5px; text-anchor: middle; dominant-baseline: middle; letter-spacing: 0; }
+  .hub { fill: #f3eff8; }
+  .compass :global(.dot) { fill: rgba(201, 184, 255, .45); transition: fill .3s; }
+  .compass :global(.dot.vis) { fill: #c9b8ff; }
+  .compass :global(.dot.cur) { fill: #8ff0ff; }
+
+  /* barre d'outils : mode du glisser, zoom, recentrer (en haut au centre, sous la nav) */
+  .tools {
+    position: absolute; left: 50%; top: 88px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+    font: 500 10px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; transition: opacity .45s ease;
+  }
+  .seg, .zgrp, .tb {
+    display: flex; align-items: center; background: rgba(15, 14, 20, .55); border: 1px solid rgba(201, 184, 255, .25); border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .seg { padding: 3px; gap: 2px; }
+  .seg-b, .zgrp .tb { background: transparent; }
+  .seg-b, .tb {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 0; border-radius: 999px; cursor: pointer;
+    font: inherit; letter-spacing: inherit; text-transform: inherit; color: rgba(201, 184, 255, .75); transition: background .2s, color .2s;
+  }
+  .seg-b:hover, .tb:hover { color: #f3eff8; }
+  .seg-b.on { background: rgba(201, 184, 255, .2); color: #f3eff8; box-shadow: inset 0 0 0 1px rgba(201, 184, 255, .35); }
+  .seg-b svg, .tb svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .zgrp { padding: 3px; }
+  .zgrp .tb { width: 28px; padding: 0; justify-content: center; font: 400 16px/1 system-ui, sans-serif; letter-spacing: 0; }
+  .tb.wide { height: 36px; padding: 0 14px; }
+  .seg-b:focus-visible, .tb:focus-visible { outline: 2px solid #c9b8ff; outline-offset: 2px; }
+  .zv { min-width: 40px; text-align: center; color: #f3eff8; letter-spacing: .06em; }
+
+  .intro { position: absolute; left: 50px; bottom: 48px; max-width: 460px; transition: opacity .5s ease, transform .5s ease; }
+  /* voile doux derrière le texte : reste lisible quand une photo passe dessous */
+  .intro::before { content: ''; position: absolute; left: -60px; right: -80px; top: -50px; bottom: -40px; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse at 35% 60%, rgba(11, 10, 18, .82), rgba(11, 10, 18, .45) 45%, rgba(11, 10, 18, 0) 75%); }
+  .intro { text-shadow: 0 1px 14px rgba(11, 10, 18, .7); }
+  .kicker { text-transform: uppercase; letter-spacing: .22em; font-size: 10.5px; }
+  .intro h2 { margin: 6px 0 10px; font: 700 clamp(28px, 3.2vw, 44px)/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: -0.02em; color: #f3eff8; }
+  .hint { margin: 0 0 14px; text-transform: uppercase; letter-spacing: .18em; font-size: 10.5px; color: #a9a3b8; white-space: normal; }
+  /* indication selon le mode (Tourner / Zoom) et le type d'écran (souris / tactile) */
+  .hint .h { display: none; }
+  .hint .m.r { display: inline; }
+  :global(.mode-zoom) .hint .m.r { display: none; }
+  :global(.mode-zoom) .hint .m.z { display: inline; }
+  @media (hover: none) and (pointer: coarse) {
+    .hint .m.r, :global(.mode-zoom) .hint .m.z { display: none; }
+    .hint .t.r { display: inline; }
+    :global(.mode-zoom) .hint .t.r { display: none; }
+    :global(.mode-zoom) .hint .t.z { display: inline; }
+  }
+  .link {
+    display: inline-flex; gap: 8px; align-items: center; padding: 8px 16px; border-radius: 999px; text-decoration: none;
+    font: 600 13px/1.2 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; color: #f3eff8;
+    background: rgba(201, 184, 255, .1); border: 1px solid rgba(201, 184, 255, .3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: background .2s ease, border-color .2s ease;
+  }
+  .link.alt { margin-left: 8px; background: transparent; }
+  .link:hover { background: rgba(201, 184, 255, .2); border-color: rgba(201, 184, 255, .6); }
+
+  /* légende en mode ouvert */
+  .cap {
+    position: absolute; left: 50%; bottom: 96px; transform: translate(-50%, 12px); width: min(560px, calc(100% - 36px)); text-align: center;
+    opacity: 0; visibility: hidden; transition: opacity .45s ease, transform .45s ease, visibility 0s linear .45s;
+  }
+  .cap-meta { display: flex; justify-content: center; gap: 12px; align-items: center; }
+  .hd { padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(201, 184, 255, .3); color: rgba(201, 184, 255, .35); transition: color .3s, border-color .3s, box-shadow .3s; }
+  .hd.on { color: #8ff0ff; border-color: rgba(143, 240, 255, .55); box-shadow: 0 0 12px rgba(143, 240, 255, .25); }
+  .cap-text { margin: 8px 0 14px; font: 500 17px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; color: #f3eff8; text-shadow: 0 2px 18px rgba(0, 0, 0, .6); }
+  .cap-text small { display: block; margin-top: 4px; font: 500 11px/1.5 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; color: #a9a3b8; }
+  .cap-nav { display: flex; justify-content: center; gap: 10px; }
+  .btn, .x {
+    font: 600 14px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #f3eff8; cursor: pointer;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(201, 184, 255, .28); border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .2s ease, border-color .2s ease;
+  }
+  .btn { width: 42px; height: 38px; }
+  .btn.wide { width: auto; padding: 0 18px; }
+  .btn:hover, .x:hover { background: rgba(201, 184, 255, .2); border-color: rgba(201, 184, 255, .6); }
+  .btn:focus-visible, .x:focus-visible, .link:focus-visible { outline: 2px solid #c9b8ff; outline-offset: 2px; }
+  .x { position: absolute; right: 50px; top: 136px; width: 42px; height: 42px; font-size: 22px; font-weight: 400; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s linear .45s, background .2s; }
+
+  :global(.hero-shell.open) .cap { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .45s ease .15s, transform .45s ease .15s, visibility 0s; }
+  :global(.hero-shell.open) .x { opacity: 1; visibility: visible; transition: opacity .45s ease .15s, visibility 0s, background .2s; }
+  :global(.hero-shell.open) .intro { opacity: 0; transform: translateY(10px); pointer-events: none; }
+  :global(.hero-shell.open) .intro .link, :global(.hero-shell.open) .tools button { pointer-events: none; }
+  :global(.hero-shell.open) .tools, :global(.hero-shell.open) .compass { opacity: 0; }
+  :global(.hero-shell.open) .l-tl { opacity: .35; }
+  .compass { transition: opacity .45s ease; }
+
+  .nogl-msg { display: none; }
+  :global(.hero-shell.nogl) .nogl-msg {
+    display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: #a9a3b8;
+    font: 500 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  :global(.hero-shell.nogl) .hud { display: none; }
+
+  @media (max-width: 820px) {
+    .tl, .tr { top: 132px; }
+    .l-tl { left: 44px; top: 136px; }
+    .l-tr { right: 44px; top: 136px; }
+    .compass { width: 52px; height: 52px; margin-top: 8px; }
+    .l-tl .sub { display: none; }
+    .tools { top: auto; bottom: 244px; gap: 5px; font-size: 9px; letter-spacing: .1em; }
+    .seg-b { padding: 0 8px; gap: 4px; }
+    .zv { min-width: 32px; }
+    .tools .lab { display: none; }
+    .tb.wide { width: 36px; padding: 0; justify-content: center; }
+    .x { display: none; }
+    :global(.hero-shell.open) .l-tl, :global(.hero-shell.open) .l-tr, :global(.hero-shell.open) .tl, :global(.hero-shell.open) .tr { opacity: 0; }
+    .intro { left: 24px; right: 24px; bottom: 30px; }
+    .bl { left: 14px; bottom: 14px; }
+    .cap { bottom: 28px; }
+    .cap-text { font-size: 15px; }
+  }
+</style>
+
+<script>
+  import * as THREE from 'three';
+
+  // ───────── CONFIG ─────────
+  const RADIUS_SPHERE = 9;       // rayon de la bulle (unités 3D)
+  const LAYER_GAP = 0.9;         // trois couches sphériques (R - gap, R, R + gap) pour la profondeur
+  const Y_MAX = 0.7;             // bande utile : sin de l'élévation max, on évite les pôles
+  const TURNS = 3.4;             // tours de la spirale qui range les photos dans l'ordre (voisines = suivantes)
+  const PHOTO_AREA = 3.5;        // surface de chaque photo : tailles homogènes quel que soit le ratio
+  const AREA_MOBILE = 1.15;      // facteur de surface sur petit écran (vue plus étroite)
+  const MARGIN = 0.4;            // marge du quad autour de la photo (halo)
+  const CORNER = 0.06;           // arrondi des coins
+  const FOG_NEAR = 8, FOG_FAR = 17; // brume : la couche du fond est un peu plus voilée
+  // zoom : un seul réglage z (0 = vue par défaut) qui combine champ de vision ET avancée réelle de la caméra
+  const FOV = 60, FOV_MOBILE = 76;   // champ de vision vertical au repos (plus large en portrait)
+  const FOV_WIDE = 80, FOV_WIDE_MOBILE = 94; // z = -1 : vue la plus large
+  const FOV_CLOSE = 40;              // z = +1 : champ resserré...
+  const DOLLY_MAX = 6.4;             // ...et caméra avancée vers la sphère (rayon 9 : on frôle les photos)
+  const Z_MIN = -1, Z_MAX = 1;
+  const WHEEL_ZOOM = 0.0011;         // par pixel de molette
+  const DRAG_ZOOM = 0.0045;          // par pixel de glisser vertical en mode Zoom
+  const PINCH_ZOOM = 0.9;            // par unité de log(écart des doigts)
+  const STEP_ZOOM = 0.2;             // boutons + / - et touches + / -
+  const CURSOR_PULL = 1.4;           // force du zoom vers le curseur
+  const ROT_DAMP_ZOOM = 0.5;         // rotation plus fine quand on est zoomé (0 = même vitesse partout)
+  const FOV_OPEN = 50;           // champ de vision en mode ouvert
+  const PITCH_MAX = 62;          // tangage max (degrés) : on ne peut pas se retourner
+  const DRAG_K = 0.0042;         // rad par pixel (pondéré par le zoom)
+  const KEY_STEP = 18;           // degrés par appui sur une flèche
+  const INERTIA = 2.6;           // amortissement de l'élan après un glisser (plus grand = s'arrête plus vite)
+  const AUTO_SPIN = 0.035;       // rotation automatique au repos (rad / s)
+  const AUTO_DELAY = 3.5;        // secondes sans interaction avant qu'elle reprenne
+  const PARALLAX = 0.035;        // léger décalage du regard selon la souris (rad)
+  const FLOAT_AMP = 0.08, FLOAT_SPEED = 0.45; // flottement
+  const FILL_W = 0.86, FILL_W_MOBILE = 0.9; // largeur max de la photo ouverte (part de l'écran)
+  const SAFE = { top: 86, bottom: 224 }, SAFE_MOBILE = { top: 252, bottom: 196 }; // marges libres en px (nav, barre du lab, légende)
+  const RESIDENT = 24, RESIDENT_MOBILE = 16; // vignettes gardées en mémoire GPU
+  const CONCURRENT = 3;          // téléchargements simultanés
+  const DUST = 900, DUST_MOBILE = 400; // poussières lumineuses
+  const TINTS = [[0.62, 0.45, 1.0], [0.79, 0.72, 1.0], [0.42, 0.40, 1.0], [0.40, 0.85, 1.0], [0.55, 0.95, 0.85]]; // violet, lavande, bleu-violet, cyan, vert d'eau
+
+  const root = document.querySelector<HTMLElement>('[data-hero="photospace"]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const canvas = root.querySelector('canvas')!;
+    const cfg = JSON.parse(root.querySelector('[data-photos]')!.textContent || '{}') as {
+      base: string; list: { f: string; w: number; h: number; fr: string; en: string; place: string }[];
+    };
+    const list = cfg.list;
+    const N = list.length;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = Math.min(innerWidth, innerHeight) < 700;
+    const pad = (v: number) => String(v).padStart(2, '0');
+    const D2R = Math.PI / 180;
+    const FOV0 = mobile ? FOV_MOBILE : FOV, FOVW = mobile ? FOV_WIDE_MOBILE : FOV_WIDE;
+    const fovOf = (z: number) => (z < 0 ? FOV0 + (FOVW - FOV0) * -z : FOV0 + (FOV_CLOSE - FOV0) * z);
+    const dollyOf = (z: number) => (z > 0 ? DOLLY_MAX * Math.pow(z, 1.25) : 0);
+    // grossissement ressenti : rapprochement de la sphère x resserrement du champ
+    const magOf = (z: number) => (RADIUS_SPHERE / (RADIUS_SPHERE - dollyOf(z))) * Math.tan((FOV0 / 2) * D2R) / Math.tan((fovOf(z) / 2) * D2R);
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    } catch (e) { root.classList.add('nogl'); return; }
+    renderer.setClearColor(0x0b0a12, 1);
+    renderer.autoClear = false;
+    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+
+    // ───────── fond : ciel de la bulle, nébuleuses fixes dans l'espace (repères quand on tourne) ─────────
+    const bgScene = new THREE.Scene();
+    const bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const bgMat = new THREE.ShaderMaterial({
+      uniforms: { uRot: { value: new THREE.Matrix3() }, uTan: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uOpen: { value: 0 } },
+      vertexShader: `
+        uniform mat3 uRot; uniform vec2 uTan; varying vec3 vDir; varying vec2 vUv;
+        void main() { vUv = uv; vDir = uRot * vec3(position.x * uTan.x, position.y * uTan.y, -1.); gl_Position = vec4(position.xy, 0., 1.); }`,
+      fragmentShader: `
+        uniform float uTime, uOpen; varying vec3 vDir; varying vec2 vUv;
+        float blob(vec3 d, vec3 c, float k) { return pow(max(dot(d, normalize(c)), 0.), k); }
+        void main() {
+          vec3 d = normalize(vDir);
+          vec3 col = vec3(.04, .036, .066);
+          col += vec3(.20, .12, .44) * exp(-d.y * d.y * 7.) * .38;           // anneau violet à l'horizon
+          col += vec3(.34, .22, .78) * blob(d, vec3(.2, .15, -1.), 6.) * .30;  // nébuleuse violette
+          col += vec3(.30, .32, .95) * blob(d, vec3(.9, .35, .5), 9.) * .20;   // bleu-violet
+          col += vec3(.10, .55, .62) * blob(d, vec3(-.85, -.25, .35), 10.) * .16; // cyan discret
+          col += vec3(.18, .45, .38) * blob(d, vec3(-.3, .5, .9), 14.) * .08;   // touche de vert d'eau
+          col *= 1. - .25 * smoothstep(.55, 1., abs(d.y));                     // pôles plus sombres
+          col *= 1. - .4 * uOpen;
+          vec2 q = vUv - .5; col *= 1. - dot(q, q) * .6;
+          col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;
+          gl_FragColor = vec4(col, 1.);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
+
+    // ───────── scène principale ─────────
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(FOV0, 1, 0.1, 60);
+    camera.rotation.order = 'YXZ';
+
+    const photoVS = `
+      varying vec2 vUv; varying float vDepth;
+      void main() { vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.); vDepth = -mv.z; gl_Position = projectionMatrix * mv; }`;
+    const photoFS = `
+      uniform sampler2D uMap; uniform vec2 uSize; uniform vec3 uTint;
+      uniform float uMargin, uRadius, uLoad, uDim, uHover, uFocus, uNear, uFar, uTime, uSeed, uHide;
+      varying vec2 vUv; varying float vDepth;
+      float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+      void main() {
+        vec2 full = uSize + 2. * uMargin;
+        vec2 p = (vUv - .5) * full;
+        float d = sdBox(p, uSize * .5, uRadius);
+        float aa = fwidth(d) + 1e-5;
+        float inside = 1. - smoothstep(-aa, aa, d);
+        vec2 puv = p / uSize + .5;
+        // tuile d'attente : dégradé sombre et reflet qui passe, en attendant la vignette
+        vec3 wait = mix(vec3(.07, .063, .105), vec3(.12, .10, .2), puv.y) + uTint * .025;
+        wait += vec3(.05, .045, .09) * smoothstep(.2, 0., abs(fract(uTime * .25 + uSeed) * 2.4 - .7 - (puv.x + puv.y) * .5));
+        vec3 col = mix(wait, texture2D(uMap, puv).rgb, uLoad);
+        // filet fin lumineux sur le bord
+        float edge = 1. - smoothstep(0., aa * 1.5 + .005, abs(d + .006));
+        col = mix(col, mix(vec3(.79, .72, 1.), vec3(1.), uHover * .5), edge * (.3 + .45 * uHover) * (1. - uFocus * .7));
+        // brume : les photos du fond se teintent de violet
+        float fog = smoothstep(uFar, uNear, vDepth);
+        col = mix(col, vec3(.16, .13, .28), (1. - fog) * .5);
+        col *= mix(1., .2, uDim);
+        float halo = exp(-max(d, 0.) * mix(8., 5., uHover)) * (.16 + .24 * uHover + .1 * uFocus) * (1. - uDim * .85) * (1. - inside)
+                   * smoothstep(uMargin * .98, uMargin * .45, d);
+        float a = inside + halo;
+        vec3 outc = (col * inside + uTint * halo) / max(a, 1e-4);
+        a *= mix(.55, 1., fog) * smoothstep(.3, 1.2, vDepth) * (1. - uDim * .62) * (1. - uHide);
+        if (a < .003) discard;
+        gl_FragColor = vec4(outc, a);
+      }`;
+
+    // répartition : spirale sur la bande centrale de la sphère, pas d'arc constant (photos régulièrement espacées)
+    const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    const spots: { y: number; th: number }[] = [];
+    {
+      const ys = list.map((_, i) => Y_MAX - (2 * Y_MAX * (i + 0.5)) / N);
+      const inv = ys.map((y) => 1 / Math.sqrt(1 - y * y));
+      const total = inv.reduce((a, b) => a + b, 0);
+      let th = 0;
+      ys.forEach((y, i) => { spots.push({ y, th }); th += (TURNS * 2 * Math.PI * inv[i]) / total; });
+    }
+
+    const geo = new THREE.PlaneGeometry(1, 1);
+    type Item = {
+      i: number; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; w: number; h: number;
+      base: THREE.Vector3; dir: THREE.Vector3; up: THREE.Vector3; right: THREE.Vector3; quat: THREE.Quaternion; phase: number;
+      thumb: THREE.Texture | null; large: THREE.Texture | null; loading: boolean; load: number;
+      hover: number; focus: number; dim: number; hide: number;
+    };
+    const items: Item[] = list.map((ph, i) => {
+      const ar = ph.w / ph.h;
+      const h = Math.sqrt(PHOTO_AREA * (mobile ? AREA_MOBILE : 1) / ar), w = ar * h;
+      const t = TINTS[i % TINTS.length];
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uMap: { value: null }, uSize: { value: new THREE.Vector2(w, h) }, uTint: { value: new THREE.Vector3(t[0], t[1], t[2]) },
+          uMargin: { value: MARGIN }, uRadius: { value: CORNER }, uLoad: { value: 0 }, uDim: { value: 0 }, uHover: { value: 0 },
+          uFocus: { value: 0 }, uHide: { value: 0 }, uNear: { value: FOG_NEAR }, uFar: { value: FOG_FAR }, uTime: { value: 0 }, uSeed: { value: hash(i + 9) },
+        },
+        vertexShader: photoVS, fragmentShader: photoFS, transparent: true, depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.scale.set(w + 2 * MARGIN, h + 2 * MARGIN, 1);
+      mesh.userData.i = i;
+      // azimut 0 = droit devant (-Z) : la première photo est en face au chargement
+      const { y, th } = spots[i];
+      const r = Math.sqrt(1 - y * y);
+      const dir = new THREE.Vector3(-Math.sin(th) * r, y, -Math.cos(th) * r).normalize();
+      const rad = RADIUS_SPHERE + ((i % 3) - 1) * LAYER_GAP + (hash(i + 2) - 0.5) * 0.3;
+      const base = dir.clone().multiplyScalar(rad);
+      mesh.position.copy(base);
+      mesh.lookAt(0, 0, 0); // tournée vers le centre de la bulle
+      const quat = mesh.quaternion.clone();
+      const up = new THREE.Vector3(0, 1, 0).applyQuaternion(quat);
+      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(quat);
+      scene.add(mesh);
+      return {
+        i, mesh, mat, w, h, base, dir, up, right, quat, phase: hash(i + 5) * 6.283,
+        thumb: null, large: null, loading: false, load: 0, hover: 0, focus: 0, dim: 0, hide: 0,
+      };
+    });
+
+    // ───────── poussières lumineuses, en coquille autour de la caméra ─────────
+    const dustN = mobile ? DUST_MOBILE : DUST;
+    const dpos = new Float32Array(dustN * 3), dseed = new Float32Array(dustN);
+    for (let k = 0; k < dustN; k++) {
+      const u = Math.random() * 2 - 1, a = Math.random() * 6.283, r = 2.5 + Math.pow(Math.random(), 0.8) * 12;
+      const s = Math.sqrt(1 - u * u);
+      dpos[k * 3] = Math.cos(a) * s * r; dpos[k * 3 + 1] = u * r * 0.8; dpos[k * 3 + 2] = Math.sin(a) * s * r;
+      dseed[k] = Math.random();
+    }
+    const dgeo = new THREE.BufferGeometry();
+    dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+    dgeo.setAttribute('aSeed', new THREE.BufferAttribute(dseed, 1));
+    const dustMat = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uPix: { value: 1 }, uFar: { value: 18 }, uDim: { value: 0 } },
+      vertexShader: `
+        attribute float aSeed; uniform float uTime, uPix, uFar; varying float vA, vS;
+        void main() {
+          vec3 p = position;
+          p.x += sin(uTime * .21 + aSeed * 40.) * .2; p.y += cos(uTime * .17 + aSeed * 23.) * .16; p.z += sin(uTime * .13 + aSeed * 31.) * .2;
+          vec4 mv = modelViewMatrix * vec4(p, 1.);
+          float dep = -mv.z;
+          gl_PointSize = (1.2 + aSeed * 2.6) * uPix * 6. / max(dep, .5);
+          vA = smoothstep(uFar, uFar * .35, dep) * smoothstep(.4, 2.5, dep) * (.25 + .75 * fract(aSeed * 13.7));
+          vS = aSeed;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uDim; varying float vA, vS;
+        void main() {
+          float r = length(gl_PointCoord - .5);
+          float a = smoothstep(.5, .0, r);
+          vec3 c = vS > .86 ? vec3(.45, .9, 1.) : mix(vec3(.62, .5, 1.), vec3(.85, .8, 1.), vS);
+          gl_FragColor = vec4(c, a * vA * .55 * (1. - uDim * .6));
+        }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const dust = new THREE.Points(dgeo, dustMat);
+    dust.frustumCulled = false;
+    scene.add(dust);
+
+    // ───────── état ─────────
+    let W = 1, H = 1, aspect = 1;
+    let yaw = 0, yawT = 0, pitch = 0, pitchT = 0, vYaw = 0, vPitch = 0;   // regard (rad)
+    let zoom = 0, zoomT = 0, zoomFree = 0, fov = FOV0, fovT = FOV0;
+    let mode: 'rotate' | 'zoom' = 'rotate';
+    let flying = false;                                                   // vol de retour après fermeture
+    let auto = 0;                                                          // 0..1 : rotation automatique en cours
+    const ptr = { x: 0, y: 0, sx: 0, sy: 0 };
+    const camPos = new THREE.Vector3(), tPos = new THREE.Vector3();
+    let open = -1, openToken = 0;
+    let hovered = -1, lastInput = -10;
+    let dirty = true, tNow = 0;
+    const PITCH_LIM = PITCH_MAX * D2R;
+
+    const hud = {
+      count: root.querySelector<HTMLElement>('[data-count]')!, head: root.querySelector<HTMLElement>('[data-head]')!,
+      capN: root.querySelector<HTMLElement>('[data-cap-n]')!, capText: root.querySelector<HTMLElement>('[data-cap-text]')!,
+      hd: root.querySelector<HTMLElement>('[data-hd]')!, zv: root.querySelector<HTMLElement>('[data-zv]')!,
+      wedge: root.querySelector<SVGPathElement>('[data-wedge]')!, dots: root.querySelector<SVGGElement>('[data-dots]')!,
+    };
+    // un point par photo sur l'anneau de la boussole (vue de dessus, N = devant au départ)
+    const SVGNS = 'http://www.w3.org/2000/svg';
+    const dots = items.map((it) => {
+      const c = document.createElementNS(SVGNS, 'circle');
+      const hz = Math.hypot(it.dir.x, it.dir.z) || 1;
+      const rr = 19 + (it.dir.y + 1) * 3.5; // plus haut = plus à l'extérieur de l'anneau
+      c.setAttribute('cx', (it.dir.x / hz * rr).toFixed(2)); c.setAttribute('cy', (it.dir.z / hz * rr).toFixed(2));
+      c.setAttribute('r', '1.25'); c.setAttribute('class', 'dot');
+      hud.dots.appendChild(c);
+      return c;
+    });
+
+    const resize = () => {
+      const r = root.getBoundingClientRect();
+      W = Math.max(1, r.width); H = Math.max(1, r.height); aspect = W / H;
+      const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(W, H, false);
+      camera.aspect = aspect; camera.updateProjectionMatrix();
+      dustMat.uniforms.uPix.value = dpr * H / 900;
+      if (open >= 0) aimAt(open);
+      dirty = true;
+    };
+    new ResizeObserver(resize).observe(root);
+
+    // ───────── textures ─────────
+    const loadImage = (src: string) => new Promise<HTMLImageElement>((res, rej) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => res(img));
+      img.onerror = rej;
+      img.src = src;
+    });
+    const makeTex = (img: HTMLImageElement) => {
+      const t = new THREE.Texture(img);
+      t.anisotropy = maxAniso; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+      t.needsUpdate = true;
+      renderer.initTexture(t); // envoi au GPU tout de suite, pas au premier affichage
+      return t;
+    };
+    let inflight = 0;
+    const loadThumb = (it: Item) => {
+      it.loading = true; inflight++;
+      loadImage(cfg.base + list[it.i].f + '-thumb.webp').then((img) => {
+        it.thumb = makeTex(img);
+        if (!it.large) it.mat.uniforms.uMap.value = it.thumb;
+      }).catch(() => {}).finally(() => { it.loading = false; inflight--; dirty = true; });
+    };
+    const evict = (it: Item) => {
+      if (!it.thumb || it.i === open) return;
+      it.thumb.dispose(); it.thumb = null; it.load = 0;
+      it.mat.uniforms.uMap.value = null; it.mat.uniforms.uLoad.value = 0;
+    };
+    // priorité : les photos les plus proches du centre du regard d'abord
+    const view = new THREE.Vector3(), sv = new THREE.Vector3();
+    const schedule = () => {
+      camera.getWorldDirection(view);
+      const ranked = items.map((it) => {
+        sv.copy(it.base).sub(camPos); const dist = sv.length();
+        return { it, s: 1 - sv.divideScalar(dist).dot(view) + dist * 0.01 };
+      }).sort((p, q) => p.s - q.s);
+      const keep = mobile ? RESIDENT_MOBILE : RESIDENT;
+      ranked.forEach(({ it }, rank) => {
+        if (rank < keep) { if (!it.thumb && !it.loading && inflight < CONCURRENT) loadThumb(it); }
+        else if (rank > keep + 4) evict(it);
+      });
+    };
+    const releaseLarge = (it: Item) => {
+      if (!it.large) return;
+      it.large.dispose(); it.large = null;
+      it.mat.uniforms.uMap.value = it.thumb;
+    };
+
+    // ───────── mode ouvert : la caméra quitte le centre et vole vers la photo ─────────
+    const wrapNear = (a: number, ref: number) => a + Math.round((ref - a) / (2 * Math.PI)) * 2 * Math.PI;
+    const aimAt = (i: number) => {
+      const it = items[i];
+      const tanH = Math.tan((FOV_OPEN / 2) * D2R);
+      const sf = W < 820 ? SAFE_MOBILE : SAFE;
+      const fillH = Math.max(0.3, (H - sf.top - sf.bottom) / H);
+      const dH = it.h / (fillH * 2 * tanH);
+      const dW = it.w / ((W < 820 ? FILL_W_MOBILE : FILL_W) * 2 * tanH * aspect);
+      const d = Math.max(dH, dW);
+      const lift = ((sf.bottom - sf.top) / (2 * H)) * 2 * d * tanH; // centre la photo dans la zone libre
+      // le regard vise la photo : même direction que du centre, caméra décalée vers le bas pour la légende
+      tPos.copy(it.base).addScaledVector(it.dir, -d).addScaledVector(it.up, -lift);
+      yawT = wrapNear(Math.atan2(-it.dir.x, -it.dir.z), yaw);
+      pitchT = Math.asin(THREE.MathUtils.clamp(it.dir.y, -1, 1));
+      fovT = FOV_OPEN;
+    };
+    const setCaption = (i: number) => {
+      const ph = list[i];
+      const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+      hud.capN.textContent = `${pad(i + 1)} / ${pad(N)}`;
+      hud.capText.innerHTML = `<span data-l="fr">${esc(ph.fr)}</span><span data-l="en">${esc(ph.en)}</span>` + (ph.place ? `<small>${esc(ph.place)}</small>` : '');
+    };
+    const openPhoto = (i: number) => {
+      const prev = open;
+      if (prev >= 0 && prev !== i) releaseLarge(items[prev]);
+      if (prev < 0) zoomFree = zoomT;
+      open = i;
+      vYaw = vPitch = 0; auto = 0;
+      aimAt(i);
+      setCaption(i);
+      root.classList.add('open');
+      const it = items[i];
+      hud.hd.classList.toggle('on', !!it.large);
+      if (!it.thumb && !it.loading) loadThumb(it);
+      if (!it.large) {
+        const token = ++openToken;
+        loadImage(cfg.base + list[i].f + '.webp').then((img) => {
+          if (token !== openToken || open !== i) return;
+          it.large = makeTex(img);
+          it.mat.uniforms.uMap.value = it.large;
+          it.load = Math.max(it.load, 0.999);
+          hud.hd.classList.add('on');
+          dirty = true;
+        }).catch(() => {});
+      }
+      if (reduced) snap();
+      dirty = true;
+    };
+    const step = (dir: number) => { if (open >= 0) openPhoto((open + dir + N) % N); };
+    const close = () => {
+      if (open < 0) return;
+      releaseLarge(items[open]);
+      openToken++;
+      open = -1;
+      root.classList.remove('open');
+      zoomT = zoomFree; flying = true;
+      lastInput = tNow;
+      if (reduced) snap();
+      dirty = true;
+    };
+
+    // ───────── interactions ─────────
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const meshes = items.map((it) => it.mesh);
+    const pick = (cx: number, cy: number) => {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      for (const h of ray.intersectObjects(meshes, false)) {
+        const it = items[h.object.userData.i as number];
+        if (!h.uv) continue;
+        // on ignore la marge du halo
+        const fx = (h.uv.x - 0.5) * (it.w + 2 * MARGIN), fy = (h.uv.y - 0.5) * (it.h + 2 * MARGIN);
+        if (Math.abs(fx) > it.w / 2 + 0.03 || Math.abs(fy) > it.h / 2 + 0.03) continue;
+        return it.i;
+      }
+      return -1;
+    };
+    const touchInput = () => { lastInput = tNow; auto = 0; dirty = true; };
+    const clampZ = (z: number) => THREE.MathUtils.clamp(z, Z_MIN, Z_MAX);
+    const radPerPx = () => DRAG_K / Math.pow(magOf(zoom), ROT_DAMP_ZOOM); // plus on est près, plus le glisser est fin
+
+    // zoom vers le point sous le curseur : en zoomant, le regard glisse un peu vers lui
+    const zoomTowards = (dz: number, cx?: number, cy?: number, pull = true) => {
+      if (open >= 0 || !dz) return;
+      const before = zoomT;
+      zoomT = clampZ(zoomT + dz);
+      let d: THREE.Vector3 | null = null;
+      if (zoomT > before && pull && cx !== undefined && cy !== undefined) {
+        const r = canvas.getBoundingClientRect();
+        ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+        ray.setFromCamera(ndc, camera);
+        d = ray.ray.direction;
+      } else if (zoomT > before && pull) {
+        // sans curseur (boutons, clavier) : on vise la photo la plus proche du centre de l'écran, si elle est près
+        camera.getWorldDirection(view);
+        let best = -1, bd = Math.cos(22 * D2R);
+        items.forEach((it, i) => { const c = sv.copy(it.base).sub(camPos).normalize().dot(view); if (c > bd) { bd = c; best = i; } });
+        if (best >= 0) d = items[best].dir;
+      }
+      if (d) {
+        const f = THREE.MathUtils.clamp((zoomT - before) * CURSOR_PULL, 0, 0.5);
+        yawT += (wrapNear(Math.atan2(-d.x, -d.z), yawT) - yawT) * f;
+        pitchT = THREE.MathUtils.clamp(pitchT + (Math.asin(THREE.MathUtils.clamp(d.y, -1, 1)) - pitchT) * f, -PITCH_LIM, PITCH_LIM);
+      }
+      touchInput();
+      if (reduced) snap();
+    };
+    const rotateBy = (dx: number, dy: number, track: boolean) => {
+      const k = radPerPx();
+      yawT += dx * k;
+      pitchT = THREE.MathUtils.clamp(pitchT + dy * k, -PITCH_LIM, PITCH_LIM);
+      if (track) {
+        const now = performance.now(), dtm = Math.max(8, now - lastMoveT) / 1000;
+        vYaw = vYaw * 0.5 + (dx * k / dtm) * 0.5; vPitch = vPitch * 0.5 + (dy * k / dtm) * 0.5;
+        lastMoveT = now;
+      }
+      if (reduced) snap();
+    };
+    const recenter = () => {
+      if (open >= 0) close();
+      yawT = wrapNear(0, yaw); pitchT = 0; zoomT = 0; vYaw = vPitch = 0;
+      touchInput();
+      if (reduced) snap();
+    };
+
+    // mode du glisser : Tourner (par défaut) ou Zoom ; Maj ou clic droit = l'autre mode le temps du geste
+    const modeBtns = [...root.querySelectorAll<HTMLButtonElement>('[data-mode]')];
+    const setMode = (m: 'rotate' | 'zoom') => {
+      mode = m;
+      root.classList.toggle('mode-zoom', m === 'zoom');
+      modeBtns.forEach((b) => { const on = b.dataset.mode === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    };
+    modeBtns.forEach((b) => b.addEventListener('click', () => setMode(b.dataset.mode as 'rotate' | 'zoom')));
+
+    // pointeurs actifs : un doigt = glisser selon le mode, deux doigts = pincer pour zoomer et glisser pour tourner
+    const pts = new Map<number, { x: number; y: number }>();
+    let drag: { x: number; y: number; moved: boolean; alt: boolean; right: boolean } | null = null;
+    let pinch: { d: number; z: number; mx: number; my: number } | null = null;
+    let lastMoveT = 0;
+    const two = () => { const [a, b] = [...pts.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    canvas.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      touchInput();
+      vYaw = vPitch = 0;
+      if (pts.size === 2 && open < 0) { const g = two(); pinch = { d: g.d, z: zoomT, mx: g.mx, my: g.my }; if (drag) drag.moved = true; }
+      else if (pts.size === 1) {
+        drag = { x: e.clientX, y: e.clientY, moved: false, alt: e.shiftKey || e.button === 2, right: e.button === 2 };
+        lastMoveT = performance.now();
+      }
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const r = root.getBoundingClientRect();
+      if (e.pointerType === 'mouse') {
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -(((e.clientY - r.top) / r.height) * 2 - 1);
+      }
+      const p = pts.get(e.pointerId);
+      if (p) {
+        const dx = e.clientX - p.x, dy = e.clientY - p.y;
+        p.x = e.clientX; p.y = e.clientY;
+        touchInput();
+        if (pinch && pts.size >= 2) {
+          const g = two();
+          zoomTowards(clampZ(pinch.z + Math.log(g.d / pinch.d) * PINCH_ZOOM) - zoomT, g.mx, g.my, false); // pas d'attraction : elle contrarierait la rotation à deux doigts
+          rotateBy(g.mx - pinch.mx, g.my - pinch.my, false); // les deux doigts qui glissent ensemble font tourner
+          pinch.mx = g.mx; pinch.my = g.my;
+        } else if (drag) {
+          if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 7) { drag.moved = true; root.classList.add('grabbing'); }
+          if (drag.moved && open < 0) {
+            const zoomMode = (mode === 'zoom') !== drag.alt;
+            if (zoomMode) zoomTowards(-dy * DRAG_ZOOM, drag.x, drag.y); // vers le haut = on avance
+            else rotateBy(dx, dy, true);
+          }
+        }
+      } else if (e.pointerType === 'mouse') {
+        const h = open < 0 ? pick(e.clientX, e.clientY) : -1;
+        if (h !== hovered) { hovered = h; canvas.style.cursor = h >= 0 ? 'pointer' : ''; }
+        if (h >= 0) lastInput = tNow; // la rotation auto attend tant qu'on survole une photo
+      }
+      dirty = true;
+    });
+    const up = (e: PointerEvent) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      root.classList.remove('grabbing');
+      if (pinch) { if (pts.size < 2) pinch = null; if (pts.size === 0) drag = null; vYaw = vPitch = 0; return; }
+      const d = drag; drag = null;
+      if (!d) return;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.moved) {
+        // un vrai clic (bouton principal, pas de déplacement au-delà de 7 px)
+        if (d.right) return;
+        const h = pick(e.clientX, e.clientY);
+        if (h >= 0 && h !== open) openPhoto(h);
+        else if (h < 0 && open >= 0) close();
+      } else if (open >= 0) {
+        // en mode ouvert : glisser horizontalement pour changer de photo, verticalement pour fermer
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+        else if (Math.abs(dy) > 70) close();
+      } else if (reduced || performance.now() - lastMoveT > 90) { vYaw = vPitch = 0; }
+      if (e.pointerType !== 'mouse') hovered = -1;
+      dirty = true;
+    };
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', (e) => { pts.delete(e.pointerId); pinch = null; drag = null; root.classList.remove('grabbing'); });
+    canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !pts.size) { ptr.x = ptr.y = 0; hovered = -1; canvas.style.cursor = ''; } });
+
+    let wheelLock = 0;
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      touchInput();
+      const dy = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+      if (open >= 0) {
+        const now = performance.now();
+        if (Math.abs(dy) > 12 && now > wheelLock) { step(dy > 0 ? 1 : -1); wheelLock = now + 650; }
+      } else {
+        zoomTowards(-THREE.MathUtils.clamp(dy, -160, 160) * WHEEL_ZOOM, e.clientX, e.clientY);
+      }
+    }, { passive: false });
+
+    root.querySelector('[data-zin]')!.addEventListener('click', () => zoomTowards(STEP_ZOOM));
+    root.querySelector('[data-zout]')!.addEventListener('click', () => zoomTowards(-STEP_ZOOM));
+    root.querySelector('[data-recenter]')!.addEventListener('click', recenter);
+
+    let inView = true;
+    window.addEventListener('keydown', (e) => {
+      if (!inView || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (open >= 0) {
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') step(1);
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') step(-1);
+        else return;
+      } else {
+        const s = KEY_STEP * D2R / Math.pow(magOf(zoom), ROT_DAMP_ZOOM);
+        if (e.key === 'ArrowLeft') yawT += s;
+        else if (e.key === 'ArrowRight') yawT -= s;
+        else if (e.key === 'ArrowUp') pitchT = Math.min(PITCH_LIM, pitchT + s);
+        else if (e.key === 'ArrowDown') pitchT = Math.max(-PITCH_LIM, pitchT - s);
+        else if (e.key === '+' || e.key === '=') { zoomTowards(STEP_ZOOM); return e.preventDefault(); }
+        else if (e.key === '-' || e.key === '_') { zoomTowards(-STEP_ZOOM); return e.preventDefault(); }
+        else if (e.key === '0') { recenter(); return e.preventDefault(); }
+        else return;
+        touchInput();
+        if (reduced) snap();
+      }
+      e.preventDefault();
+      dirty = true;
+    });
+    root.querySelector('[data-prev]')!.addEventListener('click', () => step(-1));
+    root.querySelector('[data-next]')!.addEventListener('click', () => step(1));
+    root.querySelector('[data-close]')!.addEventListener('click', close);
+    root.querySelector('[data-x]')!.addEventListener('click', close);
+
+    // ───────── image par image ─────────
+    const damp = (k: number, dt: number) => 1 - Math.exp(-k * dt);
+    // position libre : sur l'axe du regard, d'autant plus avancée vers la sphère que le zoom est fort
+    const freePos = (out: THREE.Vector3, y: number, p: number, z: number) =>
+      out.set(-Math.sin(y) * Math.cos(p), Math.sin(p), -Math.cos(y) * Math.cos(p)).multiplyScalar(dollyOf(z));
+    const snap = () => {
+      yaw = yawT; pitch = pitchT; zoom = zoomT; vYaw = vPitch = 0;
+      if (open < 0) { fovT = fovOf(zoom); freePos(tPos, yaw, pitch, zoom); }
+      fov = fovT; camPos.copy(tPos); flying = false;
+      for (const it of items) { it.focus = it.i === open ? 1 : 0; it.dim = open >= 0 && it.i !== open ? 1 : 0; it.hide = 0; }
+    };
+    const tmp = new THREE.Vector3();
+    const rotM = new THREE.Matrix3();
+
+    let frameN = 0;
+    const update = (t: number, dt: number) => {
+      tNow = t;
+      const k = reduced ? 1 : 0;
+      if (open < 0) {
+        // élan après un glisser
+        if (!pts.size && (vYaw || vPitch)) {
+          yawT += vYaw * dt; pitchT = THREE.MathUtils.clamp(pitchT + vPitch * dt, -PITCH_LIM, PITCH_LIM);
+          const f = Math.exp(-dt * INERTIA); vYaw *= f; vPitch *= f;
+          if (Math.abs(vYaw) + Math.abs(vPitch) < 1e-3) vYaw = vPitch = 0;
+        }
+        // rotation automatique très lente au repos, qui démarre en douceur
+        const idle = !reduced && !pts.size && hovered < 0 && t - lastInput > AUTO_DELAY;
+        auto += ((idle ? 1 : 0) - auto) * damp(idle ? 0.6 : 8, dt);
+        yawT -= AUTO_SPIN * auto * dt / Math.pow(magOf(zoom), ROT_DAMP_ZOOM);
+        pitchT += (0 - pitchT) * auto * damp(0.15, dt); // et revient lentement à l'horizon
+      }
+      const ak = k || damp(open >= 0 ? 3.4 : 7, dt);
+      yaw += (yawT - yaw) * ak; pitch += (pitchT - pitch) * ak;
+      zoom += (zoomT - zoom) * (k || damp(6, dt));
+      if (open < 0) { fovT = fovOf(zoom); freePos(tPos, yaw, pitch, zoom); }
+      fov += (fovT - fov) * (k || damp(open >= 0 || flying ? 4 : 12, dt));
+      ptr.sx += (ptr.x - ptr.sx) * (k || damp(3, dt));
+      ptr.sy += (ptr.y - ptr.sy) * (k || damp(3, dt));
+      // en navigation libre la caméra suit son axe directement ; on ne lisse que les vols (ouvrir / fermer)
+      camPos.lerp(tPos, k || (open >= 0 || flying ? damp(3.2, dt) : 1));
+      if (flying && camPos.distanceTo(tPos) < 0.02) flying = false;
+
+      const par = open >= 0 ? 0 : PARALLAX * (fov / FOV0);
+      camera.position.copy(camPos);
+      camera.rotation.set(pitch + ptr.sy * par, yaw - ptr.sx * par, 0);
+      if (Math.abs(camera.fov - fov) > 1e-3) { camera.fov = fov; camera.updateProjectionMatrix(); }
+      camera.updateMatrixWorld();
+
+      for (const it of items) {
+        const isOpen = it.i === open;
+        it.focus += ((isOpen ? 1 : 0) - it.focus) * (k || damp(4, dt));
+        it.dim += ((open >= 0 && !isOpen ? 1 : 0) - it.dim) * (k || damp(4, dt));
+        it.hover += ((it.i === hovered && open < 0 ? 1 : 0) - it.hover) * (k || damp(8, dt));
+        // en mode ouvert, une photo trop proche de la caméra (entre elle et la photo ouverte) s'efface
+        const near = open >= 0 && !isOpen && tmp.copy(it.base).distanceTo(tPos) < 3.2;
+        it.hide += ((near ? 1 : 0) - it.hide) * (k || damp(5, dt));
+        if (it.mat.uniforms.uMap.value) it.load = Math.min(1, it.load + (reduced ? 1 : dt / 0.6));
+        const fl = reduced ? 0 : (1 - it.focus);
+        it.mesh.position.copy(it.base)
+          .addScaledVector(it.up, fl * Math.sin(t * FLOAT_SPEED + it.phase * 1.3) * FLOAT_AMP)
+          .addScaledVector(it.right, fl * Math.sin(t * FLOAT_SPEED * 0.7 + it.phase) * FLOAT_AMP * 0.6)
+          .addScaledVector(it.dir, -it.hover * 0.25); // le survol l'avance un peu vers nous
+        it.mesh.quaternion.copy(it.quat);
+        it.mesh.rotateZ((reduced ? 0 : Math.sin(t * 0.3 + it.phase) * 0.015) * fl);
+        const s = 1 + it.hover * 0.03;
+        it.mesh.scale.set((it.w + 2 * MARGIN) * s, (it.h + 2 * MARGIN) * s, 1);
+        const u = it.mat.uniforms;
+        u.uLoad.value = it.load * it.load * (3 - 2 * it.load);
+        u.uDim.value = it.dim; u.uHide.value = it.hide; u.uHover.value = it.hover; u.uFocus.value = it.focus; u.uTime.value = reduced ? 0 : t;
+      }
+      dustMat.uniforms.uTime.value = reduced ? 0 : t;
+      const openK = items.reduce((m, it) => Math.max(m, it.focus), 0);
+      dustMat.uniforms.uDim.value = openK;
+      bgMat.uniforms.uOpen.value = openK;
+      bgMat.uniforms.uTime.value = reduced ? 0 : t;
+      const tanV = Math.tan((camera.fov / 2) * D2R);
+      bgMat.uniforms.uTan.value.set(tanV * aspect, tanV);
+      bgMat.uniforms.uRot.value.copy(rotM.setFromMatrix4(camera.matrixWorld));
+
+      if (frameN++ % 6 === 0 || reduced) {
+        schedule();
+        updateHud();
+      }
+    };
+
+    // HUD : photo au centre du regard, cap / inclinaison, zoom, boussole
+    const updateHud = () => {
+      camera.getWorldDirection(view);
+      let best = 0, bd = -2;
+      const cosHalf = Math.cos((camera.fov / 2) * D2R * Math.max(1, aspect));
+      items.forEach((it, i) => {
+        const c = sv.copy(it.base).sub(camPos).normalize().dot(view);
+        if (c > bd) { bd = c; best = i; }
+        dots[i].setAttribute('class', 'dot' + (c > cosHalf ? ' vis' : ''));
+      });
+      const cur = open >= 0 ? open : best;
+      dots[cur].setAttribute('class', 'dot cur');
+      hud.count.textContent = `${pad(cur + 1)} / ${pad(N)}`;
+      const head = ((((-yaw / D2R) % 360) + 360) % 360);
+      const inc = pitch / D2R;
+      hud.head.textContent = `CAP ${String(Math.round(head) % 360).padStart(3, '0')}° · INCL ${inc >= 0 ? '+' : '−'}${pad(Math.round(Math.abs(inc)))}°`;
+      hud.zv.textContent = magOf(zoomT).toFixed(1) + '×';
+      // cône du champ de vision horizontal sur la boussole
+      const hfov = 2 * Math.atan(Math.tan((camera.fov / 2) * D2R) * aspect);
+      const a0 = yaw - hfov / 2, a1 = yaw + hfov / 2, R = 25;
+      const px = (a: number) => (-Math.sin(a) * R).toFixed(2), py = (a: number) => (-Math.cos(a) * R).toFixed(2);
+      hud.wedge.setAttribute('d', `M0 0 L${px(a0)} ${py(a0)} A${R} ${R} 0 0 0 ${px(a1)} ${py(a1)} Z`);
+    };
+
+    const render = () => {
+      renderer.clear();
+      renderer.render(bgScene, bgCam);
+      renderer.render(scene, camera);
+    };
+
+    // ───────── boucle, pause hors écran ─────────
+    let raf = 0, last = 0, visible = true;
+    const loop = (ms: number) => {
+      raf = 0;
+      if (!visible || document.hidden) return;
+      const t = ms / 1000;
+      const dt = Math.min(0.05, Math.max(0, t - last));
+      last = t;
+      if (reduced) {
+        // pas d'animation : une image fixe, redessinée seulement après une action ou un chargement
+        if (dirty || inflight > 0) { update(t, dt); render(); dirty = false; }
+      } else { update(t, dt); render(); }
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => { if (raf) return; last = performance.now() / 1000; raf = requestAnimationFrame(loop); };
+    new IntersectionObserver(([e]) => { visible = inView = e.isIntersecting; if (visible) start(); }).observe(root);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+    resize();
+    snap();
+    update(0, 0);
+    start();
+  }
+</script>

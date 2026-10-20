@@ -1,24 +1,428 @@
 ---
+import { existsSync } from 'node:fs';
 import Base from '../../layouts/Base.astro';
-import { experiments } from '../../content/experiments';
+import { experiments, categories, type Experiment, type CategoryId } from '../../content/experiments';
 import { url } from '../../utils';
-const tagEn: Record<string, string> = { 'génératif': 'generative', physique: 'physics', 'ia-images': 'ai-images' };
+const tagEn: Record<string, string> = { 'génératif': 'generative', physique: 'physics', 'ia-images': 'ai-images', ia: 'ai', algorithmes: 'algorithms', typographie: 'typography' };
+
+// Aperçu seulement si le fichier existe dans public/ (sinon carte texte)
+const thumbOf = (e: Experiment) => (e.thumb && existsSync(`public${e.thumb}`) ? url(e.thumb) : undefined);
+const catIds = Object.keys(categories) as CategoryId[];
+
+// Une "entrée" de la grille : soit une expérience seule, soit un groupe (carrousel)
+type Item = { kind: 'single'; e: Experiment; index: number } | { kind: 'group'; id: string; list: Experiment[]; index: number };
+const items: Item[] = [];
+experiments.forEach((e, index) => {
+  if (!e.group) return void items.push({ kind: 'single', e, index });
+  const g = items.find((it) => it.kind === 'group' && it.id === e.group) as Extract<Item, { kind: 'group' }> | undefined;
+  if (g) g.list.push(e);
+  else items.push({ kind: 'group', id: e.group, list: [e], index });
+});
+// Dans un carrousel, les préférées d'abord
+items.forEach((it) => { if (it.kind === 'group') it.list.sort((a, b) => b.stars - a.stars); });
+
+const count = (c: CategoryId) => experiments.filter((e) => e.category === c).length;
+const starsFr = (n: number) => `${n} étoile${n > 1 ? 's' : ''} sur 3`;
+const starsEn = (n: number) => `${n} star${n > 1 ? 's' : ''} out of 3`;
 ---
 <Base title="Lab · Ferdinand Lacroix" bilingual>
-  <main class="page">
+  <main class="page lab">
     <h1>Lab</h1>
     <p class="lead" data-l="fr">Un peu fourre-tout : des idées, des assets et des tests qui n’ont pas (encore) de projet.</p>
     <p class="lead" data-l="en">A bit of a catch-all: ideas, assets and tests that don’t have a project (yet).</p>
-    <div class="grid">
-      {experiments.map((e) => (
-        <a class="card" href={url(`/lab/${e.slug}`)}>
-          <div class="meta">{e.date}</div>
-          <h3><span data-l="fr">{e.title}</span><span data-l="en">{e.titleEn}</span></h3>
-          <p data-l="fr">{e.description}</p>
-          <p data-l="en">{e.descriptionEn}</p>
-          <div class="tags">{e.tags.map((t) => tagEn[t] ? <span class="tag"><span data-l="fr">{t}</span><span data-l="en">{tagEn[t]}</span></span> : <span class="tag">{t}</span>)}</div>
-        </a>
-      ))}
+
+    <!-- Barre de tri et de filtres (JS côté client, état dans l'URL) -->
+    <div class="controls">
+      <div class="ctrl-row">
+        <span class="ctrl-label" id="lbl-sort"><span data-l="fr">Trier</span><span data-l="en">Sort</span></span>
+        <div class="seg" role="group" aria-labelledby="lbl-sort">
+          <button type="button" data-sort="stars" aria-pressed="true"><span data-l="fr">Préférées</span><span data-l="en">Favourites</span></button>
+          <button type="button" data-sort="alpha" aria-pressed="false">A → Z</button>
+          <button type="button" data-sort="cat" aria-pressed="false"><span data-l="fr">Catégorie</span><span data-l="en">Category</span></button>
+        </div>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-label" id="lbl-stars"><span data-l="fr">Note</span><span data-l="en">Rating</span></span>
+        <div class="seg" role="group" aria-labelledby="lbl-stars">
+          <button type="button" data-stars="1" aria-pressed="true"><span data-l="fr">Toutes</span><span data-l="en">All</span></button>
+          <button type="button" data-stars="2" aria-pressed="false"><span class="st" aria-hidden="true">★★+</span><span class="sr"><span data-l="fr">2 étoiles ou plus</span><span data-l="en">2 stars or more</span></span></button>
+          <button type="button" data-stars="3" aria-pressed="false"><span class="st" aria-hidden="true">★★★</span><span class="sr"><span data-l="fr">3 étoiles</span><span data-l="en">3 stars</span></span></button>
+        </div>
+      </div>
+      <div class="chips" role="group" aria-label="Catégories / Categories">
+        <button type="button" class="chip" data-cat="all" aria-pressed="true"><span data-l="fr">Tout</span><span data-l="en">All</span> <span class="n">{experiments.length}</span></button>
+        {catIds.map((c) => (
+          <button type="button" class="chip" data-cat={c} aria-pressed="false" style={`--c:${categories[c].color}`}>
+            <span class="dot" aria-hidden="true"></span><span data-l="fr">{categories[c].label}</span><span data-l="en">{categories[c].labelEn}</span> <span class="n">{count(c)}</span>
+          </button>
+        ))}
+      </div>
     </div>
+    <p class="status" aria-live="polite"></p>
+
+    <div class="grid lab-grid">
+      {items.map((it) => {
+        if (it.kind === 'single') {
+          const e = it.e;
+          const th = thumbOf(e);
+          return (
+            <a class="card xp" href={url(`/lab/${e.slug}`)} style={`--c:${categories[e.category].color}`}
+              data-item data-index={it.index} data-cat={e.category} data-stars={e.stars} data-fr={e.title} data-en={e.titleEn}>
+              <div class:list={['thumb', !th && 'empty']}>
+                {th ? <img src={th} alt="" loading="lazy" decoding="async" width="640" height="400" /> : <span aria-hidden="true">{e.title[0]}</span>}
+                <span class="badge"><span class="dot" aria-hidden="true"></span><span data-l="fr">{categories[e.category].label}</span><span data-l="en">{categories[e.category].labelEn}</span></span>
+              </div>
+              <div class="row">
+                <span class="meta">{e.date}</span>
+                <span class="stars">
+                  <span aria-hidden="true">{'★'.repeat(e.stars)}<i>{'★'.repeat(3 - e.stars)}</i></span>
+                  <span class="sr"><span data-l="fr">{starsFr(e.stars)}</span><span data-l="en">{starsEn(e.stars)}</span></span>
+                </span>
+              </div>
+              <h3><span data-l="fr">{e.title}</span><span data-l="en">{e.titleEn}</span></h3>
+              <p data-l="fr">{e.description}</p>
+              <p data-l="en">{e.descriptionEn}</p>
+              <div class="tags">{e.tags.map((t) => tagEn[t] ? <span class="tag"><span data-l="fr">{t}</span><span data-l="en">{tagEn[t]}</span></span> : <span class="tag">{t}</span>)}</div>
+            </a>
+          );
+        }
+        const first = it.list[0];
+        const best = Math.max(...it.list.map((e) => e.stars));
+        const cat = first.category;
+        return (
+          <section class="card xp carousel" style={`--c:${categories[cat].color}`} aria-roledescription="carousel"
+            aria-label={`${first.titleEn} (${it.list.length})`}
+            data-item data-index={it.index} data-cat={cat} data-stars={best} data-fr={first.title} data-en={first.titleEn}>
+            <div class="track">
+              {it.list.map((e, i) => {
+                const th = thumbOf(e);
+                return (
+                  <a class="slide" href={url(`/lab/${e.slug}`)} data-stars={e.stars} aria-roledescription="slide">
+                    <div class:list={['thumb', !th && 'empty']}>
+                      {th ? <img src={th} alt="" loading="lazy" decoding="async" width="640" height="400" draggable="false" /> : <span aria-hidden="true">{e.title[0]}</span>}
+                      <span class="badge"><span class="dot" aria-hidden="true"></span><span data-l="fr">{categories[cat].label}</span><span data-l="en">{categories[cat].labelEn}</span></span>
+                      <span class="series" aria-hidden="true"><span class="i">{i + 1}</span> / <span class="t">{it.list.length}</span></span>
+                    </div>
+                    <div class="row">
+                      <span class="meta">{e.date}</span>
+                      <span class="stars">
+                        <span aria-hidden="true">{'★'.repeat(e.stars)}<i>{'★'.repeat(3 - e.stars)}</i></span>
+                        <span class="sr"><span data-l="fr">{starsFr(e.stars)}</span><span data-l="en">{starsEn(e.stars)}</span></span>
+                      </span>
+                    </div>
+                    <h3><span data-l="fr">{e.title}</span><span data-l="en">{e.titleEn}</span></h3>
+                    <p data-l="fr">{e.description}</p>
+                    <p data-l="en">{e.descriptionEn}</p>
+                    <div class="tags">{e.tags.map((t) => tagEn[t] ? <span class="tag"><span data-l="fr">{t}</span><span data-l="en">{tagEn[t]}</span></span> : <span class="tag">{t}</span>)}</div>
+                  </a>
+                );
+              })}
+            </div>
+            <div class="nav-row">
+              <button type="button" class="arrow prev" aria-label="Précédent / Previous">‹</button>
+              <div class="dots"></div>
+              <span class="hint" aria-hidden="true"><span data-l="fr">Glisser</span><span data-l="en">Swipe</span></span>
+              <button type="button" class="arrow next" aria-label="Suivant / Next">›</button>
+            </div>
+          </section>
+        );
+      })}
+    </div>
+    <p class="empty-msg" hidden><span data-l="fr">Aucune expérience ne correspond à ces filtres.</span><span data-l="en">No experiment matches these filters.</span></p>
   </main>
 </Base>
+
+<script>
+  // ───────── CONFIG ─────────
+  const ANIM_MS = 420;        // durée de la réorganisation de la grille (ms)
+  const DRAG_THRESHOLD = 6;   // px avant qu'un appui souris devienne un glisser (carrousel)
+  const SWIPE_RATIO = 0.18;   // fraction de largeur à glisser pour changer de diapo
+  const SORTS = ['stars', 'alpha', 'cat'] as const;
+  const CAT_ORDER = ['revelation', 'generatif', 'webgl', 'simulation']; // ordre du tri par catégorie
+
+  type Sort = (typeof SORTS)[number];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.documentElement;
+  const lang = () => (root.dataset.lang === 'en' ? 'en' : 'fr');
+  const grid = document.querySelector<HTMLElement>('.lab-grid')!;
+  const items = [...grid.querySelectorAll<HTMLElement>('[data-item]')];
+  const status = document.querySelector<HTMLElement>('.status')!;
+  const emptyMsg = document.querySelector<HTMLElement>('.empty-msg')!;
+
+  // État lu depuis l'URL (?sort=…&cat=…&stars=…)
+  const qs = new URLSearchParams(location.search);
+  const state = {
+    sort: (SORTS as readonly string[]).includes(qs.get('sort') ?? '') ? (qs.get('sort') as Sort) : 'stars',
+    cat: CAT_ORDER.includes(qs.get('cat') ?? '') ? qs.get('cat')! : 'all',
+    stars: ['2', '3'].includes(qs.get('stars') ?? '') ? Number(qs.get('stars')) : 1,
+  };
+
+  // ───────── Carrousels ─────────
+  const carousels = [...document.querySelectorAll<HTMLElement>('.carousel')].map((el) => {
+    const track = el.querySelector<HTMLElement>('.track')!;
+    const slides = [...track.querySelectorAll<HTMLElement>('.slide')];
+    const dotsBox = el.querySelector<HTMLElement>('.dots')!;
+    const prev = el.querySelector<HTMLButtonElement>('.prev')!;
+    const next = el.querySelector<HTMLButtonElement>('.next')!;
+    const visible = () => slides.filter((s) => !s.hidden);
+    const current = () => {
+      const w = track.clientWidth || 1;
+      return Math.max(0, Math.min(visible().length - 1, Math.round(track.scrollLeft / w)));
+    };
+    const go = (i: number, smooth = true) => {
+      const n = visible().length;
+      const j = Math.max(0, Math.min(n - 1, i));
+      track.scrollTo({ left: j * track.clientWidth, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+    };
+    let last = -1;
+    const paint = () => {
+      const v = visible();
+      const c = current();
+      dotsBox.querySelectorAll('button').forEach((d, i) => d.setAttribute('aria-current', i === c ? 'true' : 'false'));
+      prev.disabled = c <= 0;
+      next.disabled = c >= v.length - 1;
+      v.forEach((s, i) => {
+        s.tabIndex = i === c ? 0 : -1;
+        s.inert = i !== c; // diapos hors champ : ni focus ni lecteur d'écran
+        s.querySelector('.series .i')!.textContent = String(i + 1);
+        s.querySelector('.series .t')!.textContent = String(v.length);
+      });
+      // Si le focus était dans le carrousel (clavier), il suit la diapo affichée
+      if (c !== last && last !== -1 && el.contains(document.activeElement) && document.activeElement?.classList.contains('slide')) v[c].focus({ preventScroll: true });
+      last = c;
+    };
+    const update = () => {
+      const v = visible();
+      dotsBox.innerHTML = '';
+      v.forEach((s, i) => {
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'dot-btn';
+        d.setAttribute('aria-label', `${i + 1} / ${v.length}`);
+        d.addEventListener('click', () => go(i));
+        dotsBox.appendChild(d);
+      });
+      el.classList.toggle('single-slide', v.length < 2);
+      last = -1;
+      go(0, false);
+      paint();
+    };
+    prev.addEventListener('click', () => go(current() - 1));
+    next.addEventListener('click', () => go(current() + 1));
+    let raf = 0;
+    track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(paint); }, { passive: true });
+    el.addEventListener('keydown', (ev) => {
+      if ((ev.target as HTMLElement).closest('.dots')) return;
+      if (ev.key === 'ArrowRight') { ev.preventDefault(); go(current() + 1); }
+      if (ev.key === 'ArrowLeft') { ev.preventDefault(); go(current() - 1); }
+    });
+    addEventListener('resize', () => go(current(), false));
+
+    // Glisser à la souris (le tactile utilise le défilement natif + scroll-snap)
+    let down = false, moved = false, startX = 0, startLeft = 0, startIdx = 0;
+    track.addEventListener('pointerdown', (ev) => {
+      if (ev.pointerType !== 'mouse' || ev.button !== 0) return;
+      down = true; moved = false; startX = ev.clientX; startLeft = track.scrollLeft; startIdx = current();
+    });
+    addEventListener('pointermove', (ev) => {
+      if (!down) return;
+      const dx = ev.clientX - startX;
+      if (!moved && Math.abs(dx) > DRAG_THRESHOLD) { moved = true; track.classList.add('dragging'); }
+      if (moved) track.scrollLeft = startLeft - dx;
+    });
+    addEventListener('pointerup', (ev) => {
+      if (!down) return;
+      down = false;
+      if (!moved) return;
+      const dx = ev.clientX - startX;
+      track.classList.remove('dragging');
+      go(Math.abs(dx) > track.clientWidth * SWIPE_RATIO ? startIdx + (dx < 0 ? 1 : -1) : startIdx);
+    });
+    // Un glisser ne doit pas ouvrir le lien
+    track.addEventListener('click', (ev) => { if (moved) { ev.preventDefault(); moved = false; } }, true);
+    track.addEventListener('dragstart', (ev) => ev.preventDefault());
+    return { update };
+  });
+
+  // ───────── Tri, filtres, animation ─────────
+  const key = (el: HTMLElement) => ({
+    cat: CAT_ORDER.indexOf(el.dataset.cat!),
+    stars: Number(el.dataset.stars),
+    index: Number(el.dataset.index),
+    name: (lang() === 'en' ? el.dataset.en : el.dataset.fr) ?? '',
+  });
+  const compare = (a: HTMLElement, b: HTMLElement) => {
+    const A = key(a), B = key(b);
+    if (state.sort === 'alpha') return A.name.localeCompare(B.name, lang(), { sensitivity: 'base' });
+    if (state.sort === 'cat') return A.cat - B.cat || B.stars - A.stars || A.index - B.index;
+    return B.stars - A.stars || A.index - B.index;
+  };
+
+  const apply = (animate = true) => {
+    // 1) positions avant (FLIP)
+    const before = new Map(items.map((el) => [el, el.hidden ? null : el.getBoundingClientRect()]));
+
+    // 2) visibilité : catégorie + note (dans un carrousel, la note filtre aussi les diapos)
+    let shown = 0;
+    items.forEach((el) => {
+      let ok = state.cat === 'all' || el.dataset.cat === state.cat;
+      if (el.classList.contains('carousel')) {
+        const slides = [...el.querySelectorAll<HTMLElement>('.slide')];
+        slides.forEach((s) => (s.hidden = Number(s.dataset.stars) < state.stars));
+        const n = slides.filter((s) => !s.hidden).length;
+        ok = ok && n > 0;
+        if (ok) shown += n;
+      } else {
+        ok = ok && Number(el.dataset.stars) >= state.stars;
+        if (ok) shown++;
+      }
+      el.hidden = !ok;
+    });
+
+    // 3) ordre
+    [...items].sort(compare).forEach((el) => grid.appendChild(el));
+    carousels.forEach((c) => c.update());
+
+    // 4) animation : glissement des cartes restées, fondu des nouvelles
+    if (animate && !reduce) {
+      items.forEach((el) => {
+        if (el.hidden) return;
+        const a = before.get(el);
+        const b = el.getBoundingClientRect();
+        if (a) {
+          const dx = a.left - b.left, dy = a.top - b.top;
+          if (dx || dy) el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ANIM_MS, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        } else {
+          el.animate([{ opacity: 0, transform: 'scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: ANIM_MS, easing: 'ease-out' });
+        }
+      });
+    }
+
+    emptyMsg.hidden = shown > 0;
+    status.textContent = lang() === 'en' ? `${shown} experiment${shown > 1 ? 's' : ''}` : `${shown} expérience${shown > 1 ? 's' : ''}`;
+
+    // 5) boutons + URL
+    document.querySelectorAll<HTMLButtonElement>('button[data-sort]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sort === state.sort)));
+    document.querySelectorAll<HTMLButtonElement>('button[data-cat]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === state.cat)));
+    document.querySelectorAll<HTMLButtonElement>('button[data-stars]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.stars) === state.stars)));
+    const q = new URLSearchParams();
+    if (state.sort !== 'stars') q.set('sort', state.sort);
+    if (state.cat !== 'all') q.set('cat', state.cat);
+    if (state.stars > 1) q.set('stars', String(state.stars));
+    const s = q.toString();
+    history.replaceState(null, '', location.pathname + (s ? `?${s}` : '') + location.hash);
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('button[data-sort]').forEach((b) => b.addEventListener('click', () => { state.sort = b.dataset.sort as Sort; apply(); }));
+  document.querySelectorAll<HTMLButtonElement>('button[data-cat]').forEach((b) => b.addEventListener('click', () => { state.cat = b.dataset.cat!; apply(); }));
+  document.querySelectorAll<HTMLButtonElement>('button[data-stars]').forEach((b) => b.addEventListener('click', () => { state.stars = Number(b.dataset.stars); apply(); }));
+
+  // Changement de langue : l'ordre alphabétique et le compteur suivent
+  new MutationObserver(() => apply(state.sort === 'alpha')).observe(root, { attributes: true, attributeFilter: ['data-lang'] });
+  apply(false);
+</script>
+
+<style>
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* Barre de contrôles */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 26px; margin: -16px 0 12px; }
+  .ctrl-row { display: flex; align-items: center; gap: 10px; }
+  .ctrl-label { font: 500 .68rem/1 ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .seg { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-2); }
+  .seg button, .chip {
+    font: inherit; font-size: .85rem; line-height: 1.3; color: var(--muted); background: transparent; border: 0; cursor: pointer;
+    padding: 6px 14px; border-radius: 999px; transition: color .2s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .seg button:hover, .chip:hover { color: var(--text); }
+  .seg button[aria-pressed='true'] { background: rgba(201,184,255,.16); color: var(--text); box-shadow: inset 0 0 0 1px rgba(201,184,255,.35); }
+  .seg .st { color: #ffd29a; letter-spacing: 1px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; flex-basis: 100%; }
+  .chip { --c: var(--accent); display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--bg-2); }
+  .chip .dot, .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); flex: none; }
+  .chip .n { font: .7rem ui-monospace, Menlo, Consolas, monospace; opacity: .55; }
+  .chip[aria-pressed='true'] { color: var(--text); border-color: color-mix(in srgb, var(--c) 70%, transparent); background: color-mix(in srgb, var(--c) 14%, var(--bg-2)); }
+  .seg button:focus-visible, .chip:focus-visible, .arrow:focus-visible, .dots :global(.dot-btn:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .status { font: .7rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; opacity: .7; }
+  .empty-msg { color: var(--muted); text-align: center; padding: 40px 0; }
+
+  /* Cartes : cadre et halo couleur de la catégorie */
+  .lab-grid { align-items: start; }
+  .xp {
+    --c: var(--accent); position: relative; padding: 12px 12px 18px; overflow: hidden;
+    border-color: color-mix(in srgb, var(--c) 28%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 6%, transparent), 0 18px 40px -28px color-mix(in srgb, var(--c) 60%, transparent);
+    transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .xp[hidden] { display: none; }
+  a.xp:hover, a.xp:focus-visible, .carousel:hover, .carousel:focus-within {
+    transform: translateY(-3px); border-color: color-mix(in srgb, var(--c) 70%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 25%, transparent), 0 22px 50px -24px color-mix(in srgb, var(--c) 75%, transparent);
+  }
+  a.xp:focus-visible { outline: 2px solid var(--c); outline-offset: 3px; }
+  .xp h3, .xp p, .xp .tags, .xp .row { margin-left: 10px; margin-right: 10px; }
+
+  .thumb { position: relative; aspect-ratio: 16 / 10; border-radius: 11px; overflow: hidden; margin-bottom: 14px; background: #0b0a10; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s cubic-bezier(.2,.8,.2,1); user-select: none; -webkit-user-drag: none; }
+  .thumb::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); background: linear-gradient(180deg, rgba(15,14,20,0) 55%, rgba(15,14,20,.5)); pointer-events: none; }
+  a.xp:hover .thumb img, .slide:hover .thumb img { transform: scale(1.04); }
+  /* Sans aperçu : dégradé doux aux couleurs de la catégorie */
+  .thumb.empty { display: grid; place-items: center; font-size: 3rem; font-weight: 800; letter-spacing: -0.04em; color: rgba(255,255,255,.85);
+    background:
+      radial-gradient(60% 70% at 28% 30%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%),
+      radial-gradient(55% 65% at 75% 72%, rgba(140,120,255,.35), transparent 70%),
+      linear-gradient(135deg, #17141f, #0b0a10); }
+  .thumb.empty span { filter: drop-shadow(0 4px 18px rgba(0,0,0,.4)); }
+  .badge {
+    position: absolute; left: 10px; top: 10px; z-index: 1; display: inline-flex; align-items: center; gap: 7px;
+    padding: 4px 10px; border-radius: 999px; font: 500 .64rem/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .1em; text-transform: uppercase;
+    color: #fff; background: rgba(15,14,20,.62); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .series { position: absolute; right: 10px; top: 10px; z-index: 1; padding: 4px 9px; border-radius: 999px; font: .64rem/1.2 ui-monospace, Menlo, Consolas, monospace; color: #fff; background: rgba(15,14,20,.62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  .stars { color: #ffd29a; font-size: .95rem; letter-spacing: 2px; line-height: 1; text-shadow: 0 0 10px rgba(255,210,154,.35); }
+  .stars i { font-style: normal; color: rgba(255,255,255,.14); text-shadow: none; }
+
+  /* Carrousel (défilement natif avec scroll-snap, flèches, points, glisser souris) */
+  .carousel { padding-bottom: 12px; }
+  .track {
+    display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain;
+    margin: 0 -12px; cursor: grab;
+  }
+  .track::-webkit-scrollbar { display: none; }
+  .track.dragging { scroll-snap-type: none; cursor: grabbing; }
+  .track.dragging .slide { pointer-events: none; }
+  .slide { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; padding: 0 12px; text-decoration: none; display: block; outline: none; }
+  .slide[hidden] { display: none; }
+  .slide .tags { margin-bottom: 14px; }
+  .slide:focus-visible .thumb { outline: 2px solid var(--c); outline-offset: 2px; }
+  .nav-row { display: flex; align-items: center; gap: 10px; margin: 0 10px; }
+  .dots { display: flex; gap: 4px; flex: 1; }
+  /* Points créés en JS : hors du scope Astro, d'où :global */
+  .dots :global(.dot-btn) { width: 26px; height: 26px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; border-radius: 999px; }
+  .dots :global(.dot-btn)::before { content: ''; width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.25); transition: width .3s ease, background-color .3s ease; }
+  .dots :global(.dot-btn[aria-current='true'])::before { width: 20px; background: var(--c); box-shadow: 0 0 8px var(--c); }
+  .hint { font: .64rem ui-monospace, Menlo, Consolas, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); opacity: .6; }
+  .arrow {
+    width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+    font-size: 1.3rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0 0 3px; transition: border-color .2s ease, opacity .2s ease;
+  }
+  .arrow:hover:not(:disabled) { border-color: var(--c); }
+  .arrow:disabled { opacity: .3; cursor: default; }
+  .single-slide .nav-row { display: none; }
+
+  @media (max-width: 640px) {
+    .controls { margin-top: -24px; gap: 10px; }
+    .ctrl-label { width: 3.4rem; }
+    .seg button { padding: 6px 11px; font-size: .8rem; }
+    .chips { flex-wrap: nowrap; overflow-x: auto; flex-basis: calc(100% + 48px); margin: 4px -24px 0; padding: 2px 24px 4px; scrollbar-width: none;
+      -webkit-mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, transparent, #000 20px, #000 calc(100% - 28px), transparent); }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex: none; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .xp, .thumb img, .dots :global(.dot-btn)::before { transition: none; }
+  }
+</style>

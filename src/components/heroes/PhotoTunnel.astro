@@ -1,0 +1,671 @@
+---
+// Zoom infini : les photos de Ferdi flottent dans un couloir en spirale, dans un espace sombre et brumeux.
+// Molette / glisser pour avancer, clic pour voler vers une photo et l'afficher en grand (version HD chargée à la demande).
+// three.js, textures chargées progressivement (les plus proches d'abord), mémoire bornée.
+import HeroShell from './HeroShell.astro';
+import { photos } from '../../content/photos';
+import { url } from '../../utils';
+
+const data = photos.map((p) => ({ f: p.file, w: p.w, h: p.h, fr: p.alt.fr, en: p.alt.en, place: p.place ?? '' }));
+const n = photos.length;
+const pad = (v: number) => String(v).padStart(2, '0');
+---
+<HeroShell name="phototunnel" scrim={false}>
+  <div class="hud">
+    <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+    <span class="corner bl" aria-hidden="true"></span>
+    <span class="lbl l-tl" aria-hidden="true">ZOOM INFINI / 3D<br />THREE.JS · FOG · <span data-l="fr">PROFONDEUR</span><span data-l="en">DEPTH</span></span>
+    <span class="lbl l-tr" aria-hidden="true"><span data-count>01 / {pad(n)}</span><br /><span data-z>Z 000.00</span></span>
+
+    <div class="intro" data-intro>
+      <span class="kicker"><span data-l="fr">Photographie · {n} images</span><span data-l="en">Photography · {n} images</span></span>
+      <h2><span data-l="fr">Zoom infini</span><span data-l="en">Infinite zoom</span></h2>
+      <p class="hint">
+        <span data-l="fr"><span class="m">molette pour avancer · clic pour ouvrir</span><span class="t">glisser pour avancer · toucher pour ouvrir</span></span>
+        <span data-l="en"><span class="m">scroll to move · click to open</span><span class="t">swipe to move · tap to open</span></span>
+      </p>
+      <a class="link" href={url('/photo')}><span data-l="fr">Voir la page Photo</span><span data-l="en">See the Photo page</span> <span aria-hidden="true">→</span></a>
+      <a class="link alt" href={url('/lab/galerie-3d')}><span data-l="fr">Version bulle 360°</span><span data-l="en">360° bubble version</span> <span aria-hidden="true">→</span></a>
+    </div>
+
+    <div class="cap" data-cap aria-live="polite">
+      <div class="cap-meta"><span data-cap-n>01 / {pad(n)}</span><span class="hd" data-hd>HD</span></div>
+      <p class="cap-text" data-cap-text></p>
+      <div class="cap-nav">
+        <button type="button" class="btn" data-prev aria-label="Photo précédente / previous photo">←</button>
+        <button type="button" class="btn wide" data-close><span data-l="fr">Fermer</span><span data-l="en">Close</span></button>
+        <button type="button" class="btn" data-next aria-label="Photo suivante / next photo">→</button>
+      </div>
+    </div>
+    <button type="button" class="x" data-x aria-label="Fermer / close">×</button>
+  </div>
+  <div class="nogl-msg">
+    <p><span data-l="fr">WebGL n’est pas disponible sur cet appareil.</span><span data-l="en">WebGL is not available on this device.</span></p>
+    <a class="link" href={url('/photo')}><span data-l="fr">Voir les photos</span><span data-l="en">See the photos</span> <span aria-hidden="true">→</span></a>
+  </div>
+  <script type="application/json" data-photos set:html={JSON.stringify({ base: url('/images/photo/'), list: data })}></script>
+  <slot />
+</HeroShell>
+
+<style>
+  :global(.hero-shell[data-hero="phototunnel"]) { background: radial-gradient(ellipse at 50% 48%, #1b1534, #0b0a12 68%); }
+  .hud { position: absolute; inset: 0; font: 500 11px/1.5 ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: .14em; color: rgba(201, 184, 255, .62); }
+  .corner { position: absolute; width: 18px; height: 18px; border: 0 solid rgba(201, 184, 255, .4); }
+  .tl { left: 24px; top: 88px; border-left-width: 1px; border-top-width: 1px; }
+  .tr { right: 24px; top: 88px; border-right-width: 1px; border-top-width: 1px; }
+  .bl { left: 24px; bottom: 24px; border-left-width: 1px; border-bottom-width: 1px; }
+  .lbl { position: absolute; white-space: nowrap; transition: opacity .5s ease; }
+  .l-tl { left: 50px; top: 92px; }
+  .l-tr { right: 50px; top: 92px; text-align: right; }
+  [data-count] { color: #f3eff8; }
+
+  .intro { position: absolute; left: 50px; bottom: 48px; max-width: 420px; transition: opacity .5s ease, transform .5s ease; }
+  /* voile doux derrière le texte : reste lisible quand une photo passe dessous */
+  .intro::before { content: ''; position: absolute; left: -60px; right: -80px; top: -50px; bottom: -40px; z-index: -1; pointer-events: none;
+    background: radial-gradient(ellipse at 35% 60%, rgba(11, 10, 18, .82), rgba(11, 10, 18, .45) 45%, rgba(11, 10, 18, 0) 75%); }
+  .intro { text-shadow: 0 1px 14px rgba(11, 10, 18, .7); }
+  .kicker { text-transform: uppercase; letter-spacing: .22em; font-size: 10.5px; }
+  .intro h2 { margin: 6px 0 10px; font: 700 clamp(28px, 3.2vw, 44px)/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: -0.02em; color: #f3eff8; }
+  .hint { margin: 0 0 14px; text-transform: uppercase; letter-spacing: .18em; font-size: 10.5px; color: #a9a3b8; }
+  .hint .t { display: none; }
+  @media (hover: none) and (pointer: coarse) { .hint .t { display: inline; } .hint .m { display: none; } }
+  .link {
+    display: inline-flex; gap: 8px; align-items: center; padding: 8px 16px; border-radius: 999px; text-decoration: none;
+    font: 600 13px/1.2 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; color: #f3eff8;
+    background: rgba(201, 184, 255, .1); border: 1px solid rgba(201, 184, 255, .3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: background .2s ease, border-color .2s ease;
+  }
+  .link.alt { margin-left: 8px; background: transparent; }
+  .link:hover { background: rgba(201, 184, 255, .2); border-color: rgba(201, 184, 255, .6); }
+
+  /* légende en mode ouvert */
+  .cap {
+    position: absolute; left: 50%; bottom: 96px; transform: translate(-50%, 12px); width: min(560px, calc(100% - 36px)); text-align: center;
+    opacity: 0; visibility: hidden; transition: opacity .45s ease, transform .45s ease, visibility 0s linear .45s;
+  }
+  .cap-meta { display: flex; justify-content: center; gap: 12px; align-items: center; }
+  .hd { padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(201, 184, 255, .3); color: rgba(201, 184, 255, .35); transition: color .3s, border-color .3s, box-shadow .3s; }
+  .hd.on { color: #8ff0ff; border-color: rgba(143, 240, 255, .55); box-shadow: 0 0 12px rgba(143, 240, 255, .25); }
+  .cap-text { margin: 8px 0 14px; font: 500 17px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; letter-spacing: 0; color: #f3eff8; text-shadow: 0 2px 18px rgba(0, 0, 0, .6); }
+  .cap-text small { display: block; margin-top: 4px; font: 500 11px/1.5 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; color: #a9a3b8; }
+  .cap-nav { display: flex; justify-content: center; gap: 10px; }
+  .btn, .x {
+    font: 600 14px/1 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #f3eff8; cursor: pointer;
+    background: rgba(255, 255, 255, .08); border: 1px solid rgba(201, 184, 255, .28); border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: background .2s ease, border-color .2s ease;
+  }
+  .btn { width: 42px; height: 38px; }
+  .btn.wide { width: auto; padding: 0 18px; }
+  .btn:hover, .x:hover { background: rgba(201, 184, 255, .2); border-color: rgba(201, 184, 255, .6); }
+  .btn:focus-visible, .x:focus-visible, .link:focus-visible { outline: 2px solid #c9b8ff; outline-offset: 2px; }
+  .x { position: absolute; right: 50px; top: 136px; width: 42px; height: 42px; font-size: 22px; font-weight: 400; opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s linear .45s, background .2s; }
+
+  :global(.hero-shell.open) .cap { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .45s ease .15s, transform .45s ease .15s, visibility 0s; }
+  :global(.hero-shell.open) .x { opacity: 1; visibility: visible; transition: opacity .45s ease .15s, visibility 0s, background .2s; }
+  :global(.hero-shell.open) .intro { opacity: 0; transform: translateY(10px); pointer-events: none; }
+  :global(.hero-shell.open) .intro .link { pointer-events: none; }
+  :global(.hero-shell.open) .l-tl { opacity: .35; }
+
+  .nogl-msg { display: none; }
+  :global(.hero-shell.nogl) .nogl-msg {
+    display: block; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: #a9a3b8;
+    font: 500 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  }
+  :global(.hero-shell.nogl) .hud { display: none; }
+
+  @media (max-width: 820px) {
+    .tl, .tr { top: 132px; }
+    .l-tl { left: 44px; top: 136px; }
+    .l-tr { right: 44px; top: 136px; }
+    .x { display: none; }
+    :global(.hero-shell.open) .l-tl, :global(.hero-shell.open) .l-tr, :global(.hero-shell.open) .tl, :global(.hero-shell.open) .tr { opacity: 0; }
+    .intro { left: 24px; right: 24px; bottom: 30px; }
+    .bl { left: 14px; bottom: 14px; }
+    .cap { bottom: 28px; }
+    .cap-text { font-size: 15px; }
+  }
+</style>
+
+<script>
+  import * as THREE from 'three';
+
+  // ───────── CONFIG ─────────
+  const SPACING = 2.3;           // écart en profondeur entre deux photos (unités 3D)
+  const PHOTO_AREA = 2.6;        // surface de chaque photo : tailles homogènes quel que soit le ratio
+  const AREA_MOBILE = 0.55;      // facteur de surface sur petit écran
+  const R_MIN = 2.25, R_VAR = 1.1; // rayon de la spirale autour de l'axe du couloir
+  const SPREAD_X = 1.3, SPREAD_Y = 0.78; // ellipse : plus large que haute
+  const GOLDEN = 2.39996;        // angle d'or : répartition régulière sans motif visible
+  const FOV = 55;
+  const FOG_NEAR = 7, FOG_FAR = 33; // brouillard : les photos se dissolvent au loin
+  const START = 1.8;             // profondeur de départ de la caméra (composition de la première vue)
+  const BACK = 6;                // distance derrière la caméra avant qu'une photo soit renvoyée au fond (boucle infinie)
+  const MARGIN = 0.32;           // marge du quad autour de la photo (halo)
+  const RADIUS = 0.045;          // arrondi des coins
+  const FLOAT_AMP = 0.07, FLOAT_SPEED = 0.45; // flottement
+  const DRIFT = 0.22;            // avance lente automatique (unités / s), coupée au survol et en mode ouvert
+  const WHEEL_K = 0.0085, DRAG_K = 0.018; // sensibilité molette / glisser
+  const PAR_X = 0.65, PAR_Y = 0.38; // parallaxe de la souris
+  const FILL_W = 0.86, FILL_W_MOBILE = 0.9; // largeur max de la photo ouverte (part de l'écran)
+  const SAFE = { top: 86, bottom: 224 }, SAFE_MOBILE = { top: 252, bottom: 196 }; // marges libres en px (nav, barre du lab, légende)
+  const RESIDENT = 18, RESIDENT_MOBILE = 12; // vignettes gardées en mémoire GPU
+  const CONCURRENT = 3;          // téléchargements simultanés
+  const DUST = 700, DUST_MOBILE = 300; // poussières lumineuses
+  const TINTS = [[0.62, 0.45, 1.0], [0.79, 0.72, 1.0], [0.42, 0.40, 1.0], [0.40, 0.85, 1.0], [0.55, 0.95, 0.85]]; // violet, lavande, bleu-violet, cyan, vert d'eau
+
+  const root = document.querySelector<HTMLElement>('[data-hero="phototunnel"]');
+  if (root) init(root);
+
+  function init(root: HTMLElement) {
+    const canvas = root.querySelector('canvas')!;
+    const cfg = JSON.parse(root.querySelector('[data-photos]')!.textContent || '{}') as {
+      base: string; list: { f: string; w: number; h: number; fr: string; en: string; place: string }[];
+    };
+    const list = cfg.list;
+    const N = list.length;
+    const L = N * SPACING;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mobile = Math.min(innerWidth, innerHeight) < 700;
+    const pad = (v: number) => String(v).padStart(2, '0');
+
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
+    } catch (e) { root.classList.add('nogl'); return; }
+    renderer.setClearColor(0x0b0a12, 1);
+    renderer.autoClear = false;
+    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+
+    // ───────── fond : halo violet au point de fuite, touche de cyan, vignette ─────────
+    const bgScene = new THREE.Scene();
+    const bgCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const bgMat = new THREE.ShaderMaterial({
+      uniforms: { uRes: { value: new THREE.Vector2(1, 1) }, uTime: { value: 0 }, uPtr: { value: new THREE.Vector2() }, uOpen: { value: 0 } },
+      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }`,
+      fragmentShader: `
+        uniform vec2 uRes, uPtr; uniform float uTime, uOpen; varying vec2 vUv;
+        void main() {
+          vec2 q = vUv - .5; q.x *= uRes.x / uRes.y;
+          vec2 c = q + uPtr * .04;
+          vec3 col = vec3(.043, .039, .071);
+          col += vec3(.24, .14, .52) * exp(-dot(c, c) * 5.) * .42;
+          col += vec3(.36, .30, .78) * exp(-dot(c, c) * 26.) * .16;
+          vec2 k = c - vec2(.38 + .05 * sin(uTime * .07), -.22);
+          col += vec3(.10, .45, .55) * exp(-dot(k, k) * 9.) * .07;
+          col *= 1. - .35 * uOpen;
+          col *= 1. - dot(q, q) * .55;
+          col += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;
+          gl_FragColor = vec4(col, 1.);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), bgMat));
+
+    // ───────── scène principale ─────────
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 80);
+    const tanH = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+
+    const photoVS = `
+      varying vec2 vUv; varying float vDepth;
+      void main() { vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.); vDepth = -mv.z; gl_Position = projectionMatrix * mv; }`;
+    const photoFS = `
+      uniform sampler2D uMap; uniform vec2 uSize; uniform vec3 uTint;
+      uniform float uMargin, uRadius, uLoad, uDim, uHover, uFocus, uNear, uFar, uTime, uSeed, uHide;
+      varying vec2 vUv; varying float vDepth;
+      float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
+      void main() {
+        vec2 full = uSize + 2. * uMargin;
+        vec2 p = (vUv - .5) * full;
+        float d = sdBox(p, uSize * .5, uRadius);
+        float aa = fwidth(d) + 1e-5;
+        float inside = 1. - smoothstep(-aa, aa, d);
+        vec2 puv = p / uSize + .5;
+        // tuile d'attente : dégradé sombre et reflet qui passe, en attendant la vignette
+        vec3 wait = mix(vec3(.07, .063, .105), vec3(.12, .10, .2), puv.y) + uTint * .025;
+        wait += vec3(.05, .045, .09) * smoothstep(.2, 0., abs(fract(uTime * .25 + uSeed) * 2.4 - .7 - (puv.x + puv.y) * .5));
+        vec3 col = mix(wait, texture2D(uMap, puv).rgb, uLoad);
+        // filet fin lumineux sur le bord
+        float edge = 1. - smoothstep(0., aa * 1.5 + .004, abs(d + .005));
+        col = mix(col, mix(vec3(.79, .72, 1.), vec3(1.), uHover * .5), edge * (.3 + .45 * uHover) * (1. - uFocus * .7));
+        // au loin, les photos se teintent légèrement de violet avant de disparaître
+        float fog = smoothstep(uFar, uNear, vDepth);
+        col = mix(col, vec3(.16, .13, .28), (1. - fog) * .45);
+        col *= mix(1., .2, uDim);
+        float halo = exp(-max(d, 0.) * mix(10., 6.5, uHover)) * (.16 + .22 * uHover + .1 * uFocus) * (1. - uDim * .85) * (1. - inside) * smoothstep(uMargin * .98, uMargin * .45, d);
+        float nearF = smoothstep(.3, 1.3, vDepth);
+        float a = inside + halo;
+        vec3 outc = (col * inside + uTint * halo) / max(a, 1e-4);
+        a *= fog * nearF * (1. - uDim * .62) * (1. - uHide);
+        if (a < .003) discard;
+        gl_FragColor = vec4(outc, a);
+      }`;
+
+    const geo = new THREE.PlaneGeometry(1, 1);
+    type Item = {
+      i: number; mesh: THREE.Mesh; mat: THREE.ShaderMaterial; w: number; h: number;
+      ang: number; rr: number; z0: number; phase: number;
+      thumb: THREE.Texture | null; large: THREE.Texture | null; loading: boolean; load: number;
+      hover: number; focus: number; dim: number; hide: number; zw: number; x: number; y: number;
+    };
+    const hash = (n: number) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+    const items: Item[] = list.map((ph, i) => {
+      const ar = ph.w / ph.h;
+      const h = Math.sqrt(PHOTO_AREA * (mobile ? AREA_MOBILE : 1) / ar), w = ar * h;
+      const t = TINTS[i % TINTS.length];
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uMap: { value: null }, uSize: { value: new THREE.Vector2(w, h) }, uTint: { value: new THREE.Vector3(t[0], t[1], t[2]) },
+          uMargin: { value: MARGIN }, uRadius: { value: RADIUS }, uLoad: { value: 0 }, uDim: { value: 0 }, uHover: { value: 0 },
+          uFocus: { value: 0 }, uHide: { value: 0 }, uNear: { value: FOG_NEAR }, uFar: { value: FOG_FAR }, uTime: { value: 0 }, uSeed: { value: hash(i + 9) },
+        },
+        vertexShader: photoVS, fragmentShader: photoFS, transparent: true, depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.scale.set(w + 2 * MARGIN, h + 2 * MARGIN, 1);
+      mesh.userData.i = i;
+      scene.add(mesh);
+      return {
+        i, mesh, mat, w, h, ang: i * GOLDEN + 0.7, rr: R_MIN + hash(i) * R_VAR, z0: -i * SPACING - hash(i + 3) * SPACING * 0.35,
+        phase: hash(i + 5) * 6.283, thumb: null, large: null, loading: false, load: 0, hover: 0, focus: 0, dim: 0, hide: 0, zw: 0, x: 0, y: 0,
+      };
+    });
+
+    // ───────── poussières lumineuses (boucle en profondeur dans le shader) ─────────
+    const dustN = mobile ? DUST_MOBILE : DUST;
+    const dpos = new Float32Array(dustN * 3), dseed = new Float32Array(dustN);
+    for (let k = 0; k < dustN; k++) {
+      const a = Math.random() * 6.283, r = 0.6 + Math.pow(Math.random(), 0.7) * 6;
+      dpos[k * 3] = Math.cos(a) * r * 1.4; dpos[k * 3 + 1] = Math.sin(a) * r * 0.9; dpos[k * 3 + 2] = -Math.random() * L;
+      dseed[k] = Math.random();
+    }
+    const dgeo = new THREE.BufferGeometry();
+    dgeo.setAttribute('position', new THREE.BufferAttribute(dpos, 3));
+    dgeo.setAttribute('aSeed', new THREE.BufferAttribute(dseed, 1));
+    const dustMat = new THREE.ShaderMaterial({
+      uniforms: { uRef: { value: 0 }, uL: { value: L }, uTime: { value: 0 }, uPix: { value: 1 }, uFar: { value: FOG_FAR }, uDim: { value: 0 } },
+      vertexShader: `
+        attribute float aSeed; uniform float uRef, uL, uTime, uPix, uFar; varying float vA, vS;
+        void main() {
+          vec3 p = position;
+          p.z = uRef + ${BACK.toFixed(1)} - mod(uRef + ${BACK.toFixed(1)} - p.z, uL);
+          p.x += sin(uTime * .21 + aSeed * 40.) * .18; p.y += cos(uTime * .17 + aSeed * 23.) * .14;
+          vec4 mv = modelViewMatrix * vec4(p, 1.);
+          float dep = -mv.z;
+          gl_PointSize = (1.2 + aSeed * 2.6) * uPix * 6. / max(dep, .5);
+          vA = smoothstep(uFar, uFar * .35, dep) * smoothstep(.4, 2.5, dep) * (.25 + .75 * fract(aSeed * 13.7));
+          vS = aSeed;
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        uniform float uDim; varying float vA, vS;
+        void main() {
+          float r = length(gl_PointCoord - .5);
+          float a = smoothstep(.5, .0, r);
+          vec3 c = vS > .86 ? vec3(.45, .9, 1.) : mix(vec3(.62, .5, 1.), vec3(.85, .8, 1.), vS);
+          gl_FragColor = vec4(c, a * vA * .55 * (1. - uDim * .6));
+        }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    });
+    const dust = new THREE.Points(dgeo, dustMat);
+    dust.frustumCulled = false;
+    scene.add(dust);
+
+    // ───────── état ─────────
+    let W = 1, H = 1, aspect = 1, spreadK = 1;
+    let travel = START, travelT = START, momentum = 0;
+    const ptr = { x: 0, y: 0, sx: 0, sy: 0 };
+    const camPos = new THREE.Vector3(0, 0, START), camLook = new THREE.Vector3(0, 0, START - 12);
+    const tPos = new THREE.Vector3(), tLook = new THREE.Vector3();
+    let open = -1, openZ = 0, openToken = 0;
+    let hovered = -1, lastInput = -10;
+    let dirty = true;
+    let tNow = 0;
+
+    const hud = {
+      count: root.querySelector<HTMLElement>('[data-count]')!, z: root.querySelector<HTMLElement>('[data-z]')!,
+      capN: root.querySelector<HTMLElement>('[data-cap-n]')!, capText: root.querySelector<HTMLElement>('[data-cap-text]')!,
+      hd: root.querySelector<HTMLElement>('[data-hd]')!,
+    };
+
+    // position repliée d'une photo autour d'une profondeur de référence (couloir infini)
+    const wrapZ = (z0: number, ref: number) => ref + BACK - (((ref + BACK - z0) % L) + L) % L;
+    const nearZ = (z0: number, around: number) => z0 + L * Math.round((around - z0) / L);
+
+    const resize = () => {
+      const r = root.getBoundingClientRect();
+      W = Math.max(1, r.width); H = Math.max(1, r.height); aspect = W / H;
+      const dpr = Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2);
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(W, H, false);
+      camera.aspect = aspect; camera.updateProjectionMatrix();
+      bgMat.uniforms.uRes.value.set(W, H);
+      dustMat.uniforms.uPix.value = dpr * H / 900;
+      spreadK = THREE.MathUtils.clamp(aspect / 1.6, 0.42, 1.15); // écrans étroits : spirale resserrée en largeur
+      if (open >= 0) aimAt(open);
+      dirty = true;
+    };
+    new ResizeObserver(resize).observe(root);
+
+    // ───────── textures ─────────
+    const loadImage = (src: string) => new Promise<HTMLImageElement>((res, rej) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(() => res(img));
+      img.onerror = rej;
+      img.src = src;
+    });
+    const makeTex = (img: HTMLImageElement) => {
+      const t = new THREE.Texture(img);
+      t.anisotropy = maxAniso; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+      t.needsUpdate = true;
+      renderer.initTexture(t); // envoi au GPU tout de suite, pas au premier affichage
+      return t;
+    };
+    let inflight = 0;
+    const loadThumb = (it: Item) => {
+      it.loading = true; inflight++;
+      loadImage(cfg.base + list[it.i].f + '-thumb.webp').then((img) => {
+        it.thumb = makeTex(img);
+        if (!it.large) it.mat.uniforms.uMap.value = it.thumb;
+      }).catch(() => {}).finally(() => { it.loading = false; inflight--; dirty = true; });
+    };
+    const evict = (it: Item) => {
+      if (!it.thumb || it.i === open) return;
+      it.thumb.dispose(); it.thumb = null; it.load = 0;
+      it.mat.uniforms.uMap.value = null; it.mat.uniforms.uLoad.value = 0;
+    };
+    // priorité : photos devant la caméra, les plus proches d'abord ; celles de derrière comptent triple
+    const schedule = () => {
+      const ref = camPos.z;
+      const ranked = items.map((it) => { const a = ref - wrapZ(it.z0, ref); return { it, s: a >= -1 ? a : -a * 3 }; }).sort((p, q) => p.s - q.s);
+      const keep = mobile ? RESIDENT_MOBILE : RESIDENT;
+      ranked.forEach(({ it }, rank) => {
+        if (rank < keep) { if (!it.thumb && !it.loading && inflight < CONCURRENT) loadThumb(it); }
+        else if (rank > keep + 4) evict(it);
+      });
+    };
+
+    const releaseLarge = (it: Item) => {
+      if (!it.large) return;
+      it.large.dispose(); it.large = null;
+      it.mat.uniforms.uMap.value = it.thumb;
+    };
+
+    // ───────── mode ouvert ─────────
+    const aimAt = (i: number) => {
+      const it = items[i];
+      const sf = W < 820 ? SAFE_MOBILE : SAFE;
+      const fillH = Math.max(0.3, (H - sf.top - sf.bottom) / H);
+      const dH = it.h / (fillH * 2 * tanH);
+      const dW = it.w / ((W < 820 ? FILL_W_MOBILE : FILL_W) * 2 * tanH * aspect);
+      const d = Math.max(dH, dW);
+      const lift = ((sf.bottom - sf.top) / (2 * H)) * 2 * d * tanH; // centre la photo dans la zone libre
+      const x = Math.cos(it.ang) * it.rr * SPREAD_X * spreadK, y = Math.sin(it.ang) * it.rr * SPREAD_Y;
+      tPos.set(x, y - lift, openZ + d);
+      tLook.set(x, y - lift, openZ);
+    };
+    const setCaption = (i: number) => {
+      const ph = list[i];
+      const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+      hud.capN.textContent = `${pad(i + 1)} / ${pad(N)}`;
+      hud.capText.innerHTML = `<span data-l="fr">${esc(ph.fr)}</span><span data-l="en">${esc(ph.en)}</span>` + (ph.place ? `<small>${esc(ph.place)}</small>` : '');
+    };
+    const openPhoto = (i: number, around?: number) => {
+      const prev = open;
+      if (prev >= 0 && prev !== i) releaseLarge(items[prev]);
+      open = i;
+      openZ = nearZ(items[i].z0, around ?? wrapZ(items[i].z0, camPos.z));
+      momentum = 0;
+      aimAt(i);
+      setCaption(i);
+      root.classList.add('open');
+      const it = items[i];
+      hud.hd.classList.toggle('on', !!it.large);
+      if (!it.thumb && !it.loading) loadThumb(it);
+      if (!it.large) {
+        const token = ++openToken;
+        loadImage(cfg.base + list[i].f + '.webp').then((img) => {
+          if (token !== openToken || open !== i) return;
+          it.large = makeTex(img);
+          it.mat.uniforms.uMap.value = it.large;
+          it.load = Math.max(it.load, 0.999);
+          hud.hd.classList.add('on');
+          dirty = true;
+        }).catch(() => {});
+      }
+      if (reduced) snap();
+      dirty = true;
+    };
+    const step = (dir: number) => {
+      if (open < 0) return;
+      const j = (open + dir + N) % N;
+      openPhoto(j, openZ - dir * SPACING);
+    };
+    const close = () => {
+      if (open < 0) return;
+      releaseLarge(items[open]);
+      openToken++;
+      open = -1;
+      root.classList.remove('open');
+      travel = travelT = camPos.z + 1.4; // on recule un peu pour retrouver la vue d'ensemble
+      if (reduced) snap();
+      dirty = true;
+    };
+
+    // ───────── interactions ─────────
+    const ray = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+    const pick = (cx: number, cy: number) => {
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      const hits = ray.intersectObjects(items.map((it) => it.mesh), false);
+      for (const h of hits) {
+        const it = items[h.object.userData.i as number];
+        if (!h.uv) continue;
+        // on ignore la marge du halo et les photos trop loin dans la brume
+        const fx = (h.uv.x - 0.5) * (it.w + 2 * MARGIN), fy = (h.uv.y - 0.5) * (it.h + 2 * MARGIN);
+        if (Math.abs(fx) > it.w / 2 + 0.03 || Math.abs(fy) > it.h / 2 + 0.03) continue;
+        if (h.distance > FOG_FAR * 0.8) continue;
+        return it.i;
+      }
+      return -1;
+    };
+
+    let down: { x: number; y: number; t: number; lx: number; ly: number; id: number; drag: boolean } | null = null;
+    let lastMoveT = 0, vel = 0;
+    canvas.addEventListener('pointerdown', (e) => {
+      down = { x: e.clientX, y: e.clientY, t: performance.now(), lx: e.clientX, ly: e.clientY, id: e.pointerId, drag: false };
+      vel = 0; momentum = 0; lastMoveT = performance.now();
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      const r = root.getBoundingClientRect();
+      if (e.pointerType === 'mouse') {
+        ptr.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+        ptr.y = -(((e.clientY - r.top) / r.height) * 2 - 1);
+      }
+      lastInput = tNow;
+      if (down && down.id === e.pointerId) {
+        const dx = e.clientX - down.x, dy = e.clientY - down.y;
+        if (!down.drag && Math.hypot(dx, dy) > 7) down.drag = true;
+        if (down.drag && open < 0) {
+          const ddy = e.clientY - down.ly;
+          const now = performance.now(), dtm = Math.max(1, now - lastMoveT);
+          travelT += ddy * DRAG_K;
+          vel = vel * 0.6 + (ddy * DRAG_K / dtm * 1000) * 0.4;
+          lastMoveT = now;
+        }
+        down.lx = e.clientX; down.ly = e.clientY;
+      } else if (e.pointerType === 'mouse') {
+        const h = pick(e.clientX, e.clientY);
+        if (h !== hovered) { hovered = h; canvas.style.cursor = h >= 0 ? 'pointer' : ''; }
+      }
+      dirty = true;
+    });
+    const up = (e: PointerEvent) => {
+      if (!down || down.id !== e.pointerId) return;
+      const d = down; down = null;
+      const dx = e.clientX - d.x, dy = e.clientY - d.y;
+      if (!d.drag) {
+        const h = pick(e.clientX, e.clientY);
+        if (h >= 0 && h !== open) openPhoto(h);
+        else if (h < 0 && open >= 0) close();
+      } else if (open >= 0) {
+        // en mode ouvert : glisser horizontalement pour changer de photo, verticalement pour fermer
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) step(dx < 0 ? 1 : -1);
+        else if (Math.abs(dy) > 70) close();
+      } else if (!reduced && performance.now() - lastMoveT < 90) {
+        momentum = THREE.MathUtils.clamp(vel, -40, 40);
+      }
+      if (e.pointerType !== 'mouse') { hovered = -1; }
+      dirty = true;
+    };
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', (e) => { if (down && down.id === e.pointerId) down = null; });
+    canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { ptr.x = ptr.y = 0; hovered = -1; canvas.style.cursor = ''; } });
+
+    let wheelLock = 0;
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      lastInput = tNow;
+      const dy = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+      if (open >= 0) {
+        const now = performance.now();
+        if (Math.abs(dy) > 12 && now > wheelLock) { step(dy > 0 ? 1 : -1); wheelLock = now + 650; }
+      } else {
+        travelT -= THREE.MathUtils.clamp(dy, -160, 160) * WHEEL_K;
+        if (reduced) snap();
+      }
+      dirty = true;
+    }, { passive: false });
+
+    let inView = true;
+    window.addEventListener('keydown', (e) => {
+      if (!inView || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (open >= 0) {
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') step(1);
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') step(-1);
+        else return;
+      } else {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') travelT -= SPACING;
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') travelT += SPACING;
+        else return;
+        if (reduced) snap();
+      }
+      e.preventDefault();
+      dirty = true;
+    });
+    root.querySelector('[data-prev]')!.addEventListener('click', () => step(-1));
+    root.querySelector('[data-next]')!.addEventListener('click', () => step(1));
+    root.querySelector('[data-close]')!.addEventListener('click', close);
+    root.querySelector('[data-x]')!.addEventListener('click', close);
+
+    // ───────── image par image ─────────
+    const damp = (k: number, dt: number) => 1 - Math.exp(-k * dt);
+    const freeTargets = (t: number) => {
+      const sway = reduced ? 0 : Math.sin(t * 0.13) * 0.12;
+      tPos.set(ptr.sx * PAR_X + sway, ptr.sy * PAR_Y, travel);
+      tLook.set(ptr.sx * PAR_X * 0.25, ptr.sy * PAR_Y * 0.25, travel - 12);
+    };
+    const snap = () => {
+      travel = travelT; ptr.sx = ptr.x; ptr.sy = ptr.y;
+      if (open < 0) freeTargets(0);
+      camPos.copy(tPos); camLook.copy(tLook);
+      for (const it of items) { it.focus = it.i === open ? 1 : 0; it.dim = open >= 0 && it.i !== open ? 1 : 0; it.hide = 0; }
+    };
+
+    let frameN = 0;
+    const update = (t: number, dt: number) => {
+      tNow = t;
+      const k = reduced ? 1 : 0;
+      // avance : molette lissée, inertie du glisser, dérive lente
+      if (open < 0) {
+        if (!reduced && !down && hovered < 0 && t - lastInput > 1.5) travelT -= DRIFT * dt;
+        travelT += momentum * dt;
+        momentum *= Math.exp(-dt * 2.8);
+        travel += (travelT - travel) * (k || damp(5, dt));
+      }
+      ptr.sx += (ptr.x - ptr.sx) * (k || damp(3, dt));
+      ptr.sy += (ptr.y - ptr.sy) * (k || damp(3, dt));
+      if (open < 0) freeTargets(t);
+      const ck = k || damp(open >= 0 ? 3.2 : 4.5, dt);
+      camPos.lerp(tPos, ck); camLook.lerp(tLook, ck);
+      camera.position.copy(camPos);
+      camera.lookAt(camLook);
+
+      const ref = camPos.z;
+      for (const it of items) {
+        const isOpen = it.i === open;
+        it.focus += ((isOpen ? 1 : 0) - it.focus) * (k || damp(4, dt));
+        it.dim += ((open >= 0 && !isOpen ? 1 : 0) - it.dim) * (k || damp(4, dt));
+        it.hover += ((it.i === hovered && open < 0 ? 1 : 0) - it.hover) * (k || damp(8, dt));
+        if (it.mat.uniforms.uMap.value) it.load = Math.min(1, it.load + (reduced ? 1 : dt / 0.6));
+        const zw = isOpen ? openZ : wrapZ(it.z0, ref);
+        // en mode ouvert, les photos situées entre la caméra et la photo ouverte s'effacent
+        it.hide += ((open >= 0 && !isOpen && zw > openZ - 0.3 ? 1 : 0) - it.hide) * (k || damp(5, dt));
+        const fl = reduced ? 0 : (1 - it.focus);
+        const x = Math.cos(it.ang) * it.rr * SPREAD_X * spreadK;
+        const y = Math.sin(it.ang) * it.rr * SPREAD_Y;
+        it.mesh.position.set(
+          x + fl * Math.sin(t * FLOAT_SPEED * 0.7 + it.phase) * FLOAT_AMP * 0.6,
+          y + fl * Math.sin(t * FLOAT_SPEED + it.phase * 1.3) * FLOAT_AMP,
+          zw);
+        // légèrement tournées vers l'axe du couloir, à plat quand on l'ouvre
+        const rf = 1 - it.focus;
+        it.mesh.rotation.set(y * 0.045 * rf, -x * 0.07 * rf, (reduced ? 0 : Math.sin(t * 0.3 + it.phase) * 0.012) * rf);
+        const s = 1 + it.hover * 0.035;
+        it.mesh.scale.set((it.w + 2 * MARGIN) * s, (it.h + 2 * MARGIN) * s, 1);
+        const u = it.mat.uniforms;
+        u.uLoad.value = it.load * it.load * (3 - 2 * it.load);
+        u.uDim.value = it.dim; u.uHide.value = it.hide; u.uHover.value = it.hover; u.uFocus.value = it.focus; u.uTime.value = reduced ? 0 : t;
+        it.zw = zw; it.x = x; it.y = y;
+      }
+      dustMat.uniforms.uRef.value = ref; dustMat.uniforms.uTime.value = reduced ? 0 : t;
+      const openK = items.reduce((m, it) => Math.max(m, it.focus), 0);
+      dustMat.uniforms.uDim.value = openK;
+      bgMat.uniforms.uTime.value = reduced ? 0 : t; bgMat.uniforms.uOpen.value = openK;
+      bgMat.uniforms.uPtr.value.set(ptr.sx, ptr.sy);
+
+      if (frameN++ % 6 === 0 || reduced) {
+        schedule();
+        // HUD : photo la plus proche devant soi, profondeur
+        let best = -1, bd = 1e9;
+        for (const it of items) { const a = ref - it.zw; if (a > 0.8 && a < bd) { bd = a; best = it.i; } }
+        if (open < 0 && best >= 0) hud.count.textContent = `${pad(best + 1)} / ${pad(N)}`;
+        if (open >= 0) hud.count.textContent = `${pad(open + 1)} / ${pad(N)}`;
+        const zv = START - ref; // profondeur parcourue depuis le départ
+        hud.z.textContent = 'Z ' + (zv < 0 ? '\u2212' : '') + Math.abs(zv).toFixed(2).padStart(6, '0');
+      }
+    };
+    const render = () => {
+      renderer.clear();
+      renderer.render(bgScene, bgCam);
+      renderer.render(scene, camera);
+    };
+
+    // ───────── boucle, pause hors écran ─────────
+    let raf = 0, last = 0, visible = true;
+    const loop = (ms: number) => {
+      raf = 0;
+      if (!visible || document.hidden) return;
+      const t = ms / 1000;
+      const dt = Math.min(0.05, Math.max(0, t - last));
+      last = t;
+      if (reduced) {
+        // pas d'animation : une image fixe, redessinée seulement après une action ou un chargement
+        if (dirty || inflight > 0) { update(t, dt); render(); dirty = false; }
+      } else { update(t, dt); render(); }
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => { if (raf) return; last = performance.now() / 1000; raf = requestAnimationFrame(loop); };
+    new IntersectionObserver(([e]) => { visible = inView = e.isIntersecting; if (visible) start(); }).observe(root);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
+    resize();
+    if (reduced) snap();
+    schedule();
+    start();
+  }
+</script>
